@@ -9,7 +9,8 @@ server:
 	gcc -pthread server.c -o server.out
 	echo $(shell date --iso=seconds)
 	git add -i  .
-	git commit -a -m "Compiled server files. Timestamp: $(shell date --iso=seconds)" -m "Line 2"
+	@echo "Please enter your commit message. (CTRL+D to end)"
+	git commit -a -m "Compiled server files. Timestamp: $(shell date --iso=seconds)" -m "$(cat)"
 	git push
 client:
 	gcc -pthread client.c -o client.out
