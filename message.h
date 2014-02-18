@@ -7,14 +7,14 @@ typedef struct arg{
     int ip;
     short port;    // port 0 for client-to-client connection
     char msg[256]; // name == null --> message
-    ARG *arg;
-} ARG
+    struct arg *arg;
+} ARG;
 
 typedef struct header{
     char command;
     int length;
     ARG *arg;
-} DATA
+} DATA;
 
 ARG *newMsg(char *str);
 ARG *newClient(char *name, int ip, short port);

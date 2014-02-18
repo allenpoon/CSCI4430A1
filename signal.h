@@ -3,5 +3,6 @@
 
 void signal_init();
 
+#include <signal.h>
 #include "signal.c"
 #endif
