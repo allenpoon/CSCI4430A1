@@ -1,5 +1,3 @@
-TST=`date +'%y.%m.%d %H:%M:%S'`
-
 
 all:
 	gcc -pthread server.c -o server.out
@@ -11,7 +9,7 @@ server:
 	gcc -pthread server.c -o server.out
 	echo $(shell date --iso=seconds)
 	git add -i  .
-	git commit -a -m "Compiled server files. Timestamp: $(shell date --iso=seconds)"
+	git commit -a -m "Compiled server files. Timestamp: $(shell date --iso=seconds)\nlinebreak TEST"
 	git push
 client:
 	gcc -pthread client.c -o client.out
