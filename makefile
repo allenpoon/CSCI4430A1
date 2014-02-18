@@ -1,7 +1,7 @@
 
 all:
 	gcc -pthread server.c -o server.out
-	gcc -pthread server.c -o client.out
+	gcc -pthread client.c -o client.out
 	git add -i .
 	@echo "Please enter your commit message. (CTRL+D to end)"
 	@make git-all
@@ -16,7 +16,14 @@ client:
 	git add -i  .
 	@echo "Please enter your commit message. (CTRL+D to end)"
 	@make git-client
+testall:
+	gcc -pthread server.c -o server.out
+	gcc -pthread client.c -o client.out
 	
+testserver:
+	gcc -pthread server.c -o server.out
+testclient:
+	gcc -pthread client.c -o client.out
 clean:
 	rm -rf *.out
 	git add -i  .
