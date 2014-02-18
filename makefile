@@ -9,7 +9,7 @@ server:
 	gcc -pthread server.c -o server.out
 	echo $(shell date --iso=seconds)
 	git add -i  .
-	git commit -a -m "Compiled server files. Timestamp: $(shell date --iso=seconds)\nlinebreak TEST"
+	git commit -a -m "Compiled server files. Timestamp: $(shell date --iso=seconds)" -m "Line 2"
 	git push
 client:
 	gcc -pthread client.c -o client.out
