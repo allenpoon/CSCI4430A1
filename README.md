@@ -1,6 +1,4 @@
 CSCI4430 Assignment 1
 ==========
 
-CSCI4430 Assignment 1
-
-Do it here!
+Build the C file using "gcc -pthread <filename>".
