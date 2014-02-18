@@ -8,9 +8,8 @@ all:
 server:
 	gcc -pthread server.c -o server.out
 	git add -i  .
-	echo "Please enter your commit message. (CTRL+D to end)"
-	git commit -a -m "Compiled server files. Timestamp: $(shell date --iso=seconds)" -m "$(MSG)"
-	git push
+	@echo "Please enter your commit message. (CTRL+D to end)"
+	@make git-server
 client:
 	gcc -pthread client.c -o client.out
 	git add -i  .
@@ -20,3 +19,6 @@ clean:
 	rm -rf *.out
 	git add -i  .
 	git commit -a -m "Cleared existing executable. Timestamp: $(shell date --iso=seconds)"
+git-server:
+	git commit -a -m "Compiled server files. Timestamp: $(shell date --iso=seconds)" -m "$(shell cat)"
+	git push
