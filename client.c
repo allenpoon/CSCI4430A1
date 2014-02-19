@@ -39,20 +39,37 @@ int main(int argc, char** argv){
 	printf(" (%d) ... done ]\n", ntohs ( ((struct sockaddr_in *)&client_addr)->sin_port ));
 
 	int choice;
-	printf("+--- Menu ----------------+\n| 1) Go online            |\n| 2) Quit                 |\n+-------------------------+\nYour choice >> ");
-	scanf("%i", &choice);
-	while(!(choice > 0 && choice < 3)){
-		printf("Please enter valid number!\n+--- Menu ----------------+\n| 1) Go online            |\n| 2) Quit                 |\n+-------------------------+\nYour choice >> ");
+	char name[256];
+	int len;
+	
+	while(1){
+		printf("+--- Menu ----------------+\n| 1) Go online            |\n| 2) Quit                 |\n+-------------------------+\nYour choice >> ");
 		scanf("%i", &choice);
-	}
+		while(!(choice > 0 && choice < 3)){
+			printf("Please enter valid number!\n+--- Menu ----------------+\n| 1) Go online            |\n| 2) Quit                 |\n+-------------------------+\nYour choice >> ");
+			scanf("%i", &choice);
+		}
 
-	switch(choice){
-		case 2:
-			close(sd);
-			exit(0);
-			break;
-		case 1:
-			break;
+		switch(choice){
+			case 2:
+				close(sd);
+				exit(0);
+				break;
+			case 1:
+				printf("Screen name [enter to return to menu] >> ");
+				getchar();
+				fgets(name, sizeof(name), stdin);
+				if(name[0] =='\n'){
+					continue;
+				}
+				if((len=send(sd,name,strlen(name),0))<0){
+					printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
+					exit(0);
+				}
+				close(0);
+				exit(0);
+				break;
+		}
 	}
 
 	while(1){
