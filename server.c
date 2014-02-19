@@ -7,28 +7,18 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netinet/in.h>
-//#include "structure.h"
+#include "structure.h"
 #include "signal.h"
 #include "message.h"
 #include "server.h"
 
-typedef struct _ip{
-	unsigned char a;
-	unsigned char b;
-	unsigned char c;
-	unsigned char d;
-}IP;
-
-typedef struct _accepted{
-	int * sd;
-	int * client_sd;
-}ACCEPT_ARG;
-
 char *getClientAddr(struct sockaddr_in * client_addr){
-	int ipadd = client_addr->sin_addr.s_addr;
-	IP *ipaddr_client = (struct _ip *) &ipadd;
-	static char ip[16];
-	sprintf(ip, "%d.%d.%d.%d",ipaddr_client->a, ipaddr_client->b, ipaddr_client->c, ipaddr_client->d);
+	static char ip[19];
+	sprintf(ip, "%d.%d.%d.%d",
+		(int)(client_addr->sin_addr.s_addr & 0xff), 
+		(int)((client_addr->sin_addr.s_addr & 0xff00)>>8), 
+		(int)((client_addr->sin_addr.s_addr & 0xff0000)>>16), 
+		(int)((client_addr->sin_addr.s_addr & 0xff000000)>>24));
 	return (char *) &ip;
 }
 
@@ -37,18 +27,18 @@ void *accepted(void *csd){
 	while(1){
 		char buff[100];
 		int len;
-        printf("BEFORE RECV\n");
+        printf("[SERVER]BEFORE RECV\n");
 		if((len=recv(client_sd,buff,sizeof(buff),0))<=0){
 			if(errno == 0){
-				printf("Client disconnected!\n");
+				printf("[SERVER]Client disconnected!\n");
 				break;
 			}
-			printf("receive error: %s (Errno:%d)\n", strerror(errno),errno);
+			printf("[SERVER]receive error: %s (Errno:%d)\n", strerror(errno),errno);
 			exit(0);
 		}
-        printf("AFTER RECV\n");
+        printf("[SERVER]AFTER RECV\n");
 		buff[len]='\0';
-		printf("RECEIVED INFO: ");
+		printf("[SERVER]RECEIVED INFO: ");
 		if(strlen(buff)!=0)printf("%s\n",buff);
 		if(strcmp("exit",buff)==0){
 			
@@ -88,7 +78,7 @@ int main(int argc, char **argv){
 			exit(0);
 		}
 
-		printf("Connected:\nClient Address: %s\n", getClientAddr(&client_addr));
+		printf("[SERVER]Connected:\nClient Address: %s Port: %d\n", getClientAddr(&client_addr), htons(client_addr.sin_port));
 		pthread_create(&pth, NULL, accepted, (void *) &client_sd);
 	}
 	pthread_join(pth,NULL);

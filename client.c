@@ -15,15 +15,44 @@ int main(int argc, char** argv){
 		printf("connection error: %s (Errno:%d)\n",strerror(errno),errno);
 		exit(0);
 	}*/
+
+	if(argc < 3){
+		printf("Usage: client.out [IP Address] [Port]\n");
+		exit(0);
+	}
+
 	int sd=socket(AF_INET,SOCK_STREAM,0);
 	struct sockaddr_in server_addr;
+	struct sockaddr_in client_addr;
 	memset(&server_addr,0,sizeof(server_addr));
 	server_addr.sin_family=AF_INET;
 	server_addr.sin_addr.s_addr=inet_addr(argv[1]);
-	server_addr.sin_port=htons(PORT);
+	server_addr.sin_port=htons(atoi(argv[2]));
+	printf("[ Opening an arbitrary listening port");
 	if(connect(sd,(struct sockaddr *)&server_addr,sizeof(server_addr))<0){
 		printf("connection error: %s (Errno:%d)\n",strerror(errno),errno);
 		exit(0);
+	}
+
+	int addr_size = sizeof(client_addr);
+	getsockname(sd, (struct sockaddr *) &client_addr, &addr_size);
+	printf(" (%d) ... done ]\n", ntohs ( ((struct sockaddr_in *)&client_addr)->sin_port ));
+
+	int choice;
+	printf("+--- Menu ----------------+\n| 1) Go online            |\n| 2) Quit                 |\n+-------------------------+\nYour choice >> ");
+	scanf("%i", &choice);
+	while(!(choice > 0 && choice < 3)){
+		printf("Please enter valid number!\n+--- Menu ----------------+\n| 1) Go online            |\n| 2) Quit                 |\n+-------------------------+\nYour choice >> ");
+		scanf("%i", &choice);
+	}
+
+	switch(choice){
+		case 2:
+			close(sd);
+			exit(0);
+			break;
+		case 1:
+			break;
 	}
 
 	while(1){
@@ -35,10 +64,6 @@ int main(int argc, char** argv){
 		if((len=send(sd,buff,strlen(buff),0))<0){
 			printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
 			exit(0);
-		}
-		if(strcmp(buff,"exit")==0){
-			close(sd);
-			break;
 		}
 	}
 	return 0;
