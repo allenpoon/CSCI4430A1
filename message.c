@@ -1,18 +1,18 @@
 #ifdef message_h
 
-ARG *newMsg(char *str){
+ARG *newMsg(char *str, int strLen){
     ARG *arg = malloc(sizeof(ARG));
     arg->name=0;
-    strncpy(arg->msg, str, 255);
-    arg->msg[255]=0;
+    strncpy(arg->msg, str, strLen>255?255:strLen);
+    arg->msg[255]=0; // prevent overflow
     return arg;
 }
 
-ARG *newClient(char *name, int ip, short port){
+ARG *newClient(char *name, int ip, short port, int nameLen){
     ARG *arg = malloc(sizeof(ARG));
-    arg->nameLen=strlen(name);
-    arg->name=malloc(sizeof(char)*arg->nameLen);
-    strncpy(arg->name, name, arg->nameLen);
+    arg->nameLen=nameLen;
+    arg->name=malloc(sizeof(char)*nameLen);
+    strncpy(arg->name, name, nameLen);
     arg->ip=ip;
     arg->port=port;
     return arg;
@@ -70,7 +70,7 @@ short addClient(DATA *header, ARG *client){
 //          + 10 * ( 4 byte NAME_LEN + 255 byte NAME + 4 byte IP + 2 byte PORT )
 //          + 1 byte NULL
 // return 0 == error occur
-void getData(DATA *data, unsigned char *result){
+void toData(DATA *data, unsigned char *result){
     int *counter=0;
     int i=0;
     ARG *arg=0;
@@ -95,30 +95,33 @@ void getData(DATA *data, unsigned char *result){
                 *result=LOGIN;
                 *((int *)(result+1)) = 0;
                 
-                // shift 5 byte
                 counter = ((int *)(result+1));
                 arg = data->arg;
+                // shift 5 byte
                 result = result + 5;
                 
                 for(i=0;i<10 && arg;i++){
                     *(int *)(result)= arg->nameLen;
-                    *counter += 4 + arg->nameLen+4+2;
+                    *counter += 4 + arg->nameLen+4+2; // update arg size
                     strncpy(result+4, arg->name, arg->nameLen);
                     *(int *)(result+4+arg->nameLen) = arg->ip;
                     *(short *)(result+4+arg->nameLen+4) = arg->port;
                     arg=arg->arg;
-                    result = result+4+arg->nameLen+4+2;
+                    *(result = result+4+arg->nameLen+4+2) = 0; // shift (4+arg->nameLen+4+2) byte and set null to end
+                    
                 }
                 break;
             case HELLO:
                 *result=HELLO;
                 *((int *)(result+1)) = data->arg->nameLen;
                 strncpy(result+1+4, data->arg->name, data->arg->nameLen);
+                *(result+1+4) = 0;
                 break;
             case MSG:
-                result[0] = MSG;
+                *result=MSG;
                 *((int *)(result+1)) = strlen(data->arg->msg);
-                strncpy(result+5, data->arg->msg,256);
+                strncpy(result+1+4, data->arg->msg,256);
+                *(result+1+4) = 0;
                 break;
             case ERROR:
                 result[0]=ERROR;
@@ -129,6 +132,62 @@ void getData(DATA *data, unsigned char *result){
         }
     }
 }
+
+
+// data[2656]
+// return 0 == cannot allocate memory
+DATA *parseData(unsigned char *data){
+    int counter=0;
+    int i=0;
+    DATA *result=newHeader();
+    result->command = *data;
+    switch(*result){
+        case LOGIN:
+            addClient(result, newClient(
+                                data+1+4, // name
+                                0,        // ip
+                                *((short *)(data+1+4+*((int *)(data+1))+4)), // port
+                                *((int *)(data+1)) // nameLen
+                     ));    
+            break;
+        case LOGIN_OK:
+        case GET_LIST:
+        case HELLO_OK:
+            // completed lol
+            break;
+        case GET_LIST_OK:
+            // shift 5 byte
+            counter = *((int *)(data+1));
+            data = data + 5;
+            
+            for(i=0;i<10 && counter > 0;i++){
+                addClient(result, newClient(
+                                    data+4;
+                                    *(int *)(data+4+*(int *)(data)), // ip
+                                    *(short *)(data+4+*(int *)(data)+4), // port
+                                    *(int *)(data) // nameLen
+                        ));
+                counter -= 4 + *(int *)(data)+4+2;
+            }
+            break;
+        case HELLO:
+            addClient(result, newClient(
+                                data+1+4, // name
+                                0,        // ip
+                                0,        // port
+                                *((int *)(data+1)) // nameLen
+                     )); 
+            break;
+        case MSG:
+            addMsg(result, newMsg(data+1+4, *(int *)(data+1) )); 
+            break;
+        case ERROR:
+            result->error = *data+5;
+            break;
+    }
+    return result;
+}
+
 
 DATA * newHeader(){
     DATA *header=malloc(sizeof(DATA));

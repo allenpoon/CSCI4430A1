@@ -36,8 +36,8 @@ typedef struct header{
     ARG *arg;
 } DATA;
 
-ARG *newMsg(char *str);
-ARG *newClient(char *name, int ip, short port);
+ARG *newMsg(char *str, int strLen);
+ARG *newClient(char *name, int ip, short port, int nameLen);
 
 // return 1 == success
 // return 0 == msg too long
@@ -51,7 +51,9 @@ short addMsg(DATA *header, ARG *msg);
 // return -2 == null pointer exception
 short addClient(DATA *header, ARG *client);
 
-void getData(DATA *data, unsigned char *result);
+void toData(DATA *data, unsigned char *result);
+
+DATA *parseData(unsigned char *data);
 
 DATA * newHeader();
 
