@@ -55,9 +55,9 @@ char *getData(DATA *data);
 
 DATA * newHeader();
 
-void freeData(DATA *data);
+int freeData(DATA *data);
 
-void freeArg(ARG * arg);
+int freeArg(ARG * arg);
 
 #include "message.c"
 #endif

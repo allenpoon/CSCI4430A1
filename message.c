@@ -54,7 +54,7 @@ short addClient(DATA *header, ARG *client){
                 for(;temp->arg;i++){
                     temp=temp->arg;
                 }
-                temp->arg=client;
+                i<10 && (temp->arg=client) || freeArg(client);
                 return i<10;
             }
             header->arg=client;
@@ -115,14 +115,15 @@ DATA * newHeader(){
     return header;
 }
 
-void freeData(DATA *data){
+int freeData(DATA *data){
     if(data->arg){
         freeArg(data->arg);
     }
     free(data);
+    return 1;
 }
 
-void freeArg(ARG * arg){
+int freeArg(ARG * arg){
     if(arg->arg){
         freeArg(arg->arg);
     }
@@ -130,6 +131,7 @@ void freeArg(ARG * arg){
         free(arg->name);
     }
     free(arg);
+    return 1;
 }
 
 #endif
