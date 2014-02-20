@@ -43,15 +43,24 @@ int main(int argc, char** argv){
 	int len;
 	
 	while(1){
+		/*Prompt out this stuff	
+			+--- Menu ----------------+
+			| 1) Go online            |
+			| 2) Quit                 |
+			+-------------------------+
+			Your choice >> 
+		*/
 		printf("+--- Menu ----------------+\n| 1) Go online            |\n| 2) Quit                 |\n+-------------------------+\nYour choice >> ");
 		scanf("%i", &choice);
 		while(!(choice > 0 && choice < 3)){
 			printf("Please enter valid number!\n+--- Menu ----------------+\n| 1) Go online            |\n| 2) Quit                 |\n+-------------------------+\nYour choice >> ");
+			getchar();
 			scanf("%i", &choice);
 		}
 
 		switch(choice){
 			case 2:
+				// Enter "2" to exit
 				close(sd);
 				exit(0);
 				break;
