@@ -31,7 +31,7 @@ typedef struct arg{
 
 typedef struct header{
     unsigned char command;
-    char error;
+    unsigned char error;
     int length;
     ARG *arg;
 } DATA;
@@ -51,7 +51,7 @@ short addMsg(DATA *header, ARG *msg);
 // return -2 == null pointer exception
 short addClient(DATA *header, ARG *client);
 
-void getData(DATA *data, char *result);
+void getData(DATA *data, unsigned char *result);
 
 DATA * newHeader();
 
