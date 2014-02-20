@@ -70,7 +70,7 @@ short addClient(DATA *header, ARG *client){
 //          + 10 * ( 4 byte NAME_LEN + 255 byte NAME + 4 byte IP + 2 byte PORT )
 //          + 1 byte NULL
 // return 0 == error occur
-void getData(DATA *data, char *result){
+void getData(DATA *data, unsigned char *result){
     int *counter=0;
     int i=0;
     ARG *arg=0;
