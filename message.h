@@ -26,7 +26,7 @@ typedef struct arg{
     char *name;    // name != null --> server client list
     short port;    // port 0 for client-to-client connection
     char msg[256]; // name == null --> message
-    ARG *arg;
+    struct arg *arg;
 } ARG;
 
 typedef struct header{
