@@ -51,7 +51,7 @@ short addMsg(DATA *header, ARG *msg);
 // return -2 == null pointer exception
 short addClient(DATA *header, ARG *client);
 
-char *getData(DATA *data);
+void getData(DATA *data, char *result);
 
 DATA * newHeader();
 
