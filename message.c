@@ -149,7 +149,7 @@ int freeArg(ARG * arg){
     if(arg->arg){
         freeArg(arg->arg);
     }
-    if(arg-->name){
+    if(arg->name){
         free(arg->name);
     }
     free(arg);
