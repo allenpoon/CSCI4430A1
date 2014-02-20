@@ -7,7 +7,6 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netinet/in.h>
-#include "structure.h"
 #include "signal.h"
 #include "message.h"
 #include "server.h"
