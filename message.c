@@ -71,13 +71,16 @@ short addClient(DATA *header, ARG *client){
 //          + 1 byte NULL
 // return 0 == error occur
 void getData(DATA *data, char *result){
+    int *counter=0;
+    int i=0;
+    ARG *arg=0;
     *result=0;
     if(data){
         switch(data->command){
             case LOGIN:
                 *result=LOGIN;
                 *((int *)(result+1)) = data->arg->nameLen;
-                strncpy(result+1+4, data->arg->name,data->arg->nameLen);
+                strncpy(result+1+4, data->arg->name, data->arg->nameLen);
                 *((int *)(result+1+4+data->arg->nameLen)) = 2;
                 *((short *)(result+1+4+data->arg->nameLen+4)) = data->arg->port;
                 result[1+4+data->arg->nameLen+4+2] = 0;
@@ -89,8 +92,28 @@ void getData(DATA *data, char *result){
                 *(result+1) = 0;
                 break;
             case GET_LIST_OK:
+                *result=LOGIN;
+                *((int *)(result+1)) = 0;
+                
+                // shift 5 byte
+                counter = ((int *)(result+1));
+                arg = data->arg;
+                result = result + 5;
+                
+                for(i=0;i<10 && arg;i++){
+                    *(int *)(result)= arg->nameLen;
+                    *counter += 4 + arg->nameLen+4+2;
+                    strncpy(result+4, arg->name, arg->nameLen);
+                    *(int *)(result+4+arg->nameLen) = arg->ip;
+                    *(short *)(result+4+arg->nameLen+4) = arg->port;
+                    arg=arg->arg;
+                    result = result+4+arg->nameLen+4+2;
+                }
                 break;
             case HELLO:
+                *result=HELLO;
+                *((int *)(result+1)) = data->arg->nameLen;
+                strncpy(result+1+4, data->arg->name, data->arg->nameLen);
                 break;
             case MSG:
                 result[0] = MSG;
@@ -105,7 +128,6 @@ void getData(DATA *data, char *result){
                 break;
         }
     }
-    return result;
 }
 
 DATA * newHeader(){
