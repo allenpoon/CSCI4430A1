@@ -30,7 +30,7 @@ typedef struct arg{
 } ARG;
 
 typedef struct header{
-    char command;
+    unsigned char command;
     char error;
     int length;
     ARG *arg;
