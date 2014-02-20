@@ -1,7 +1,7 @@
 #ifndef message_h
 #define message_h
 
-#include <cstring>
+#include <string.h>
 
 // server-client COMMAND
 #define LOGIN         0x01
