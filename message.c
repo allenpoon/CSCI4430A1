@@ -141,7 +141,7 @@ DATA *parseData(unsigned char *data){
     int i=0;
     DATA *result=newHeader();
     result->command = *data;
-    switch(*result){
+    switch(*data){
         case LOGIN:
             addClient(result, newClient(
                                 data+1+4, // name
@@ -162,7 +162,7 @@ DATA *parseData(unsigned char *data){
             
             for(i=0;i<10 && counter > 0;i++){
                 addClient(result, newClient(
-                                    data+4;
+                                    data+4,
                                     *(int *)(data+4+*(int *)(data)), // ip
                                     *(short *)(data+4+*(int *)(data)+4), // port
                                     *(int *)(data) // nameLen
