@@ -65,6 +65,23 @@ short addClient(DATA *header, ARG *client){
     return -2;
 }
 
+void removeArg(DATA *data, ARG *arg){
+    ARG *tmp;
+    if(header){
+        if(header->arg == arg){
+            header->arg=arg->arg;
+            freeArg(arg);
+        }else{
+            tmp=header->arg;
+            while(tmp->arg && tmp->arg != arg) tmp=tmp->arg;
+            if(tmp->arg == arg){
+                tmp->arg=arg->arg;
+                freeArg(arg);
+            }
+        }
+    }
+}
+
 // result[2656]
 // result = 1 byte COMMAND + 4 byte ARG_SIZE 
 //          + 10 * ( 4 byte NAME_LEN + 255 byte NAME + 4 byte IP + 2 byte PORT )
@@ -83,7 +100,7 @@ void toData(DATA *data, unsigned char *result){
                 strncpy(result+1+4, data->arg->name, data->arg->nameLen);
                 *((int *)(result+1+4+data->arg->nameLen)) = 2;
                 *((short *)(result+1+4+data->arg->nameLen+4)) = data->arg->port;
-                result[1+4+data->arg->nameLen+4+2] = 0;
+                *(result+1+4+data->arg->nameLen+4+2) = 0;
                 break;
             case LOGIN_OK:
             case GET_LIST:
@@ -93,9 +110,8 @@ void toData(DATA *data, unsigned char *result){
                 break;
             case GET_LIST_OK:
                 *result=LOGIN;
-                *((int *)(result+1)) = 0;
-                
                 counter = ((int *)(result+1));
+                *counter = 0;
                 arg = data->arg;
                 // shift 5 byte
                 result = result + 5;
@@ -115,13 +131,13 @@ void toData(DATA *data, unsigned char *result){
                 *result=HELLO;
                 *((int *)(result+1)) = data->arg->nameLen;
                 strncpy(result+1+4, data->arg->name, data->arg->nameLen);
-                *(result+1+4) = 0;
+                *(result+1+4+data->arg->nameLen) = 0;
                 break;
             case MSG:
                 *result=MSG;
                 *((int *)(result+1)) = strlen(data->arg->msg);
-                strncpy(result+1+4, data->arg->msg,256);
-                *(result+1+4) = 0;
+                strncpy(result+1+4, data->arg->msg,255);
+                *(result+1+4+256) = 0;
                 break;
             case ERROR:
                 result[0]=ERROR;

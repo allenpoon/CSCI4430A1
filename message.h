@@ -51,11 +51,14 @@ short addMsg(DATA *header, ARG *msg);
 // return -2 == null pointer exception
 short addClient(DATA *header, ARG *client);
 
+// arg memory will release if arg is found in header
+void removeArg(DATA *data, ARG *arg);
+
 void toData(DATA *data, unsigned char *result);
 
 DATA *parseData(unsigned char *data);
 
-DATA * newHeader();
+DATA *newHeader();
 
 int freeData(DATA *data);
 
