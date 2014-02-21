@@ -8,7 +8,7 @@ ARG *newMsg(char *str, int strLen){
     return arg;
 }
 
-ARG *newClient(char *name, int ip, short port, int nameLen){
+ARG *newClient(char *name, unsigned int ip, unsigned short port, int nameLen){
     ARG *arg = malloc(sizeof(ARG));
     arg->nameLen=nameLen;
     arg->name=malloc(sizeof(char)*nameLen);
@@ -81,6 +81,8 @@ void toData(DATA *data, unsigned char *result){
                 *result=LOGIN;
                 *((int *)(result+1)) = data->arg->nameLen;
                 strncpy(result+1+4, data->arg->name, data->arg->nameLen);
+            // Add NULL char to state termination of String
+                *(result+1+4+data->arg->nameLen-1) = '\0';
                 *((int *)(result+1+4+data->arg->nameLen)) = 2;
                 *((short *)(result+1+4+data->arg->nameLen+4)) = data->arg->port;
                 result[1+4+data->arg->nameLen+4+2] = 0;
@@ -143,12 +145,13 @@ DATA *parseData(unsigned char *data){
     result->command = *data;
     switch(*data){
         case LOGIN:
+
             addClient(result, newClient(
-                                data+1+4, // name
-                                0,        // ip
-                                *((short *)(data+1+4+*((int *)(data+1))+4)), // port
-                                *((int *)(data+1)) // nameLen
-                     ));    
+                data+1+4, // name
+                0,        // ip
+                *((short *)(data+1+4+*((int *)(data+1))+4)), // port
+                *((int *)(data+1)) // nameLen
+            ));    
             break;
         case LOGIN_OK:
         case GET_LIST:
@@ -182,7 +185,7 @@ DATA *parseData(unsigned char *data){
             addMsg(result, newMsg(data+1+4, *(int *)(data+1) )); 
             break;
         case ERROR:
-            result->error = *data+5;
+            result->error = *(data+5);
             break;
     }
     return result;
@@ -213,6 +216,17 @@ int freeArg(ARG * arg){
     }
     free(arg);
     return 1;
+}
+
+
+char *getClientAddr(struct sockaddr_in * client_addr){
+    static char ip[19];
+    sprintf(ip, "%d.%d.%d.%d",
+        (int)(client_addr->sin_addr.s_addr & 0xff), 
+        (int)((client_addr->sin_addr.s_addr & 0xff00)>>8), 
+        (int)((client_addr->sin_addr.s_addr & 0xff0000)>>16), 
+        (int)((client_addr->sin_addr.s_addr & 0xff000000)>>24));
+    return (char *) &ip;
 }
 
 #endif
