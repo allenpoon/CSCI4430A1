@@ -1,5 +1,3 @@
-#ifdef message_h
-
 ARG *newMsg(char *str, int strLen){
     ARG *arg = malloc(sizeof(ARG));
     arg->name=0;
@@ -65,6 +63,23 @@ short addClient(DATA *header, ARG *client){
     return -2;
 }
 
+void removeArg(DATA *data, ARG *arg){
+    ARG *tmp;
+    if(header){
+        if(header->arg == arg){
+            header->arg=arg->arg;
+            freeArg(arg);
+        }else{
+            tmp=header->arg;
+            while(tmp->arg && tmp->arg != arg) tmp=tmp->arg;
+            if(tmp->arg == arg){
+                tmp->arg=arg->arg;
+                freeArg(arg);
+            }
+        }
+    }
+}
+
 // result[2656]
 // result = 1 byte COMMAND + 4 byte ARG_SIZE 
 //          + 10 * ( 4 byte NAME_LEN + 255 byte NAME + 4 byte IP + 2 byte PORT )
@@ -85,7 +100,7 @@ void toData(DATA *data, unsigned char *result){
                 *(result+1+4+data->arg->nameLen-1) = '\0';
                 *((int *)(result+1+4+data->arg->nameLen)) = 2;
                 *((short *)(result+1+4+data->arg->nameLen+4)) = data->arg->port;
-                result[1+4+data->arg->nameLen+4+2] = 0;
+                *(result+1+4+data->arg->nameLen+4+2) = 0;
                 break;
             case LOGIN_OK:
             case GET_LIST:
@@ -95,9 +110,8 @@ void toData(DATA *data, unsigned char *result){
                 break;
             case GET_LIST_OK:
                 *result=LOGIN;
-                *((int *)(result+1)) = 0;
-                
                 counter = ((int *)(result+1));
+                *counter = 0;
                 arg = data->arg;
                 // shift 5 byte
                 result = result + 5;
@@ -117,13 +131,13 @@ void toData(DATA *data, unsigned char *result){
                 *result=HELLO;
                 *((int *)(result+1)) = data->arg->nameLen;
                 strncpy(result+1+4, data->arg->name, data->arg->nameLen);
-                *(result+1+4) = 0;
+                *(result+1+4+data->arg->nameLen) = 0;
                 break;
             case MSG:
                 *result=MSG;
                 *((int *)(result+1)) = strlen(data->arg->msg);
-                strncpy(result+1+4, data->arg->msg,256);
-                *(result+1+4) = 0;
+                strncpy(result+1+4, data->arg->msg,255);
+                *(result+1+4+256) = 0;
                 break;
             case ERROR:
                 result[0]=ERROR;
@@ -218,6 +232,27 @@ int freeArg(ARG * arg){
     return 1;
 }
 
+<<<<<<< HEAD
+=======
+int getDataLen(unsigned char *data){
+    int result = 1;
+    switch(*data){
+        case LOGIN:
+            result += 4 + 2;
+        case GET_LIST_OK:
+        case HELLO:
+        case MSG:
+        case ERROR:
+            result += 4 + *(int *)(data+1);
+            break;
+        case LOGIN_OK:
+        case GET_LIST:
+        case HELLO_OK:
+            // completed lol
+            break;
+    }
+}
+>>>>>>> f91cc1a6f4e97b6b612af5ebbc089ce811239c38
 
 char *getClientAddr(struct sockaddr_in * client_addr){
     static char ip[19];
@@ -228,5 +263,8 @@ char *getClientAddr(struct sockaddr_in * client_addr){
         (int)((client_addr->sin_addr.s_addr & 0xff000000)>>24));
     return (char *) &ip;
 }
+<<<<<<< HEAD
 
 #endif
+=======
+>>>>>>> f91cc1a6f4e97b6b612af5ebbc089ce811239c38

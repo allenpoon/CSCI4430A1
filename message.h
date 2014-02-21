@@ -37,7 +37,11 @@ typedef struct header{
 } DATA;
 
 ARG *newMsg(char *str, int strLen);
+<<<<<<< HEAD
 ARG *newClient(char *name, unsigned int ip, unsigned short port, int nameLen);
+=======
+ARG *newClient(char *name, unsigned int ip, unsignedshort port, int nameLen);
+>>>>>>> f91cc1a6f4e97b6b612af5ebbc089ce811239c38
 
 // return 1 == success
 // return 0 == msg too long
@@ -51,16 +55,24 @@ short addMsg(DATA *header, ARG *msg);
 // return -2 == null pointer exception
 short addClient(DATA *header, ARG *client);
 
+// arg memory will release if arg is found in header
+void removeArg(DATA *data, ARG *arg);
+
 void toData(DATA *data, unsigned char *result);
 
 DATA *parseData(unsigned char *data);
 
-DATA * newHeader();
+DATA *newHeader();
 
 int freeData(DATA *data);
 
 int freeArg(ARG * arg);
 
+<<<<<<< HEAD
+=======
+int getDataLen(unsigned char *data);
+
+>>>>>>> f91cc1a6f4e97b6b612af5ebbc089ce811239c38
 char *getClientAddr(struct sockaddr_in * client_addr);
 
 #include "message.c"
