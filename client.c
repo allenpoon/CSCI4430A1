@@ -56,6 +56,13 @@ unsigned char sockBuff[MAX_CLIENT+1][BUFF_LEN];
 // new active client data passing
 char *newClientName;
 
+void printName(char * name, int len){
+    int i;
+    for(i=0; i<len;i++){
+        printf("%c", name[i]);
+    }
+}
+
 void *clientRecver(void * id){
 	int thread_id = *(int *) id;
 	
@@ -293,7 +300,9 @@ void showClientList(){
 		printf("\n");
 		printf("+--- Online List ----------------\n");
 		do{
-		    printf("| %2d) %s\n", i++, tmpArg->name);
+		    printf("| %2d) ", i++);
+            printName(tmpArg->name, tmpArg->nameLen);
+            printf("\n");
 		    tmpArg=tmpArg->arg;
         }while(tmpArg);
 		printf("+--------------------------------\n");
