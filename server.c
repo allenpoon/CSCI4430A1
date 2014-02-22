@@ -11,40 +11,165 @@
 #include "message.h"
 #include "server.h"
 
-char *getClientAddr(struct sockaddr_in * client_addr){
-	static char ip[19];
-	sprintf(ip, "%d.%d.%d.%d",
-		(int)(client_addr->sin_addr.s_addr & 0xff), 
-		(int)((client_addr->sin_addr.s_addr & 0xff00)>>8), 
-		(int)((client_addr->sin_addr.s_addr & 0xff0000)>>16), 
-		(int)((client_addr->sin_addr.s_addr & 0xff000000)>>24));
-	return (char *) &ip;
+ARG *peers[10];
+
+int online(ARG *arg){
+	int i;
+	for(i=0; i<10; i++){
+		if(peers[i]==NULL) continue;
+		if(peers[i]->nameLen == arg->nameLen){
+			if(strncmp(peers[i]->name, arg->name, arg->nameLen)==0)
+				return -2;
+		}
+		if(peers[i]->ip == arg->ip && peers[i]->port == arg->port)
+			return -3;
+	}
+	for(i=0; i<10; i++){
+		if(peers[i]==NULL){
+			peers[i] = malloc(sizeof(ARG));
+			memcpy(peers[i], arg, sizeof(ARG));
+			return i;
+		}
+	}
+	return -1;
+}
+
+void offline(int id){
+	freeArg(peers[id]);
+	peers[id] = NULL;
+}
+
+void printName(char * name, int len){
+	int i;
+	for(i=0; i<len;i++){
+		printf("%c", name[i]);
+	}
+}
+
+void printOnlineList(){
+	int i;
+	printf("Listing online clients: \n");
+	for(i = 0; i < 10; i++){
+		if(peers[i]!=NULL){
+			printf("ID(%d)ONLINE: IP: %x Port: %d Name: %s\n", i, peers[i]->ip,peers[i]->port, peers[i]->name);
+		}
+	}
+}
+
+void getOnlineList(DATA *data){
+	int i;
+	for(i=0;i<10;i++){
+		if(peers[i]!=NULL){
+			addClient(data, newClient(
+					peers[i]->name,
+					peers[i]->ip,
+					peers[i]->port,
+					peers[i]->nameLen
+				));
+			data->length += peers[i]->nameLen;
+			data->length += (4+4+2);
+		}
+	}
+}
+
+void printClientList(ARG * arg){
+	if(arg!=NULL){
+		printf("Client: %s\n", arg->name);
+		printClientList(arg->arg);
+	}
 }
 
 void *accepted(void *csd){
-	int client_sd = *(int *)csd;
+	PEER *p = (PEER *) csd;
+	DATA *data = malloc(sizeof(DATA));
+	DATA *reply = malloc(sizeof(DATA));
+	int client_sd = p->client_sd;
+	char *buff = malloc(2656);
+	int len, id, status;
+	
 	while(1){
-		char buff[100];
-		int len;
-        printf("[SERVER]BEFORE RECV\n");
-		if((len=recv(client_sd,buff,sizeof(buff),0))<=0){
-			if(errno == 0){
-				printf("[SERVER]Client disconnected!\n");
+		data = recv_data(client_sd,&len,&status);
+		switch(status){
+			case -1:
+			case -2:
+				close(client_sd);
+				offline(id);
+				printf("[Disconnected] Client %s:%d\n", 
+					getClientAddr(&p->client_addr),
+					ntohs(p->client_addr.sin_port));
+				return;
+			default:
 				break;
-			}
-			printf("[SERVER]receive error: %s (Errno:%d)\n", strerror(errno),errno);
-			exit(0);
 		}
-        printf("[SERVER]AFTER RECV\n");
-		buff[len]='\0';
-		printf("[SERVER]RECEIVED INFO: ");
-		if(strlen(buff)!=0)printf("%s\n",buff);
-		if(strcmp("exit",buff)==0){
-			
-			close(client_sd);
-			break;
-		}
+
+	    switch(data->command){
+	    	case LOGIN:
+	    		printf("Client %s:%d: [LOGIN] Username=", 
+	    			getClientAddr(&p->client_addr),
+	    			ntohs(p->client_addr.sin_port));
+	    		printName(data->arg->name, data->arg->nameLen);
+	    		printf("\n");
+	    		data->arg->ip = ntohl(p->client_addr.sin_addr.s_addr);
+	    		id = online(data->arg);
+	    		if(id >= 0){
+	    			reply = newHeader();
+	    			reply->command = LOGIN_OK;
+	    			reply->length = 1;
+					if(!send_data(client_sd,reply,&len)) return;
+	    		}else{
+	    			printf("[ERROR] Client %s:%d ", 
+						getClientAddr(&p->client_addr),
+						ntohs(p->client_addr.sin_port));
+	    			reply = newHeader();
+	    			reply->command = ERROR;
+	    			switch(id){
+	    				case -1:
+	    					printf("maximum connection exceed!");
+	    					reply->error = TOO_MUCH_CONN;
+	    					break;
+	    				case -2:
+	    					printf("duplication of name!");
+	    					reply->error = SAME_NAME;
+	    					break;
+	    				case -3:
+	    					printf("duplication of port and IP address!");
+	    					reply->error = SAME_CONN;
+	    			}
+	    			printf("\n");
+	    			reply->length = 7;
+	    			if(!send_data(client_sd,reply,&len)) return;
+	    			close(client_sd);
+					printf("[Disconnected] Client %s:%d\n", 
+						getClientAddr(&p->client_addr),
+						ntohs(p->client_addr.sin_port));
+					return;
+	    		}
+	    		break;
+	    	case GET_LIST:
+	    		printf("Client %s:%d: GET_LIST\n", 
+	    			getClientAddr(&p->client_addr),
+	    			ntohs(p->client_addr.sin_port));
+	    		reply = newHeader();
+	    		reply->command = GET_LIST_OK;
+	    		getOnlineList(reply);
+	    		reply->length += 7;
+				if(!send_data(client_sd,reply,&len)) return;
+	    		break;
+	    	default:
+	    		printf("Client %s:%d: Unknown command\n", 
+	    			getClientAddr(&p->client_addr),
+	    			ntohs(p->client_addr.sin_port));
+	    		break;
+	    }
 	}
+
+	close(client_sd);
+	offline(id);
+	printOnlineList();
+	printf("[Disconnected] Client %s:%d\n", 
+		getClientAddr(&p->client_addr),
+		p->client_addr.sin_port);
+
 }
 
 int main(int argc, char **argv){
@@ -52,6 +177,7 @@ int main(int argc, char **argv){
     int client_sd;
     int addr_len;
     int len;
+    int i;
 
     pthread_t pth;
 
@@ -61,6 +187,10 @@ int main(int argc, char **argv){
 	server_addr.sin_family = AF_INET;
 	server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 	server_addr.sin_port = htons(PORT);
+
+	for(i=0;i<10;i++){
+		peers[i] = NULL;
+	}
 
 	if(bind(sd, (struct sockaddr *) &server_addr, sizeof(server_addr)) < 0){
 		printf("Socket cannot bind to a port. %s \nError number: %d\n", strerror(errno), errno);
@@ -77,8 +207,14 @@ int main(int argc, char **argv){
 			exit(0);
 		}
 
-		printf("[SERVER]Connected:\nClient Address: %s Port: %d\n", getClientAddr(&client_addr), htons(client_addr.sin_port));
-		pthread_create(&pth, NULL, accepted, (void *) &client_sd);
+		printf("[Connected] Client: %s:%d\n", 
+			getClientAddr(&client_addr), 
+			htons(client_addr.sin_port));
+		PEER passing;
+		passing.client_sd = client_sd;
+		passing.sd = sd;
+		passing.client_addr = client_addr;
+		pthread_create(&pth, NULL, accepted, (void *) &passing);
 	}
 	pthread_join(pth,NULL);
 

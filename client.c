@@ -7,7 +7,7 @@
 # include <sys/types.h>
 # include <netinet/in.h>
 # include <pthread.h>
-# include <message.h>
+# include "message.h"
 
 #define NAME_LEN 255
 #define MAX_MSG_LEN 255
