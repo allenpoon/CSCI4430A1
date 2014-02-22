@@ -19,6 +19,7 @@
 #define SAME_NAME     0x01
 #define SAME_CONN     0x02
 #define TOO_MUCH_CONN 0x03
+#define NOT_IN_LIST   0x04
 
 typedef struct arg{
     int nameLen;
