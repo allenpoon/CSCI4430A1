@@ -6,7 +6,7 @@ ARG *newMsg(char *str, unsigned int strLen){
     return arg;
 }
 
-ARG *newClient(char *name, unsigned int ip, unsigned short port, unsigned int nameLen){
+ARG *newClient(char *name, unsigned long ip, unsigned short port, unsigned int nameLen){
     ARG *arg = malloc(sizeof(ARG));
     arg->nameLen=nameLen;
     arg->name=malloc(sizeof(char)*nameLen);
@@ -120,7 +120,7 @@ void toData(DATA *data, unsigned char *result){
                     
                     *(unsigned int *)(   result                  )= arg->nameLen;
                     strncpy(             result+4                , arg->name, arg->nameLen);
-                    *(unsigned int *)(   result+4+arg->nameLen   ) = arg->ip;
+                    *(unsigned long *)(  result+4+arg->nameLen   ) = arg->ip;
                     *(unsigned short *)( result+4+arg->nameLen+4 ) = arg->port;
                     
                     *(result = result+4+arg->nameLen+4+2) = 0; // shift (4+arg->nameLen+4+2) byte and set null to end
@@ -181,7 +181,7 @@ DATA *parseData(unsigned char *data){
             for(i=0;i<10 && counter > 0;i++){
                 addClient(result, newClient(
                                                          data+4,
-                                    *(unsigned int *)(   data+4+*(unsigned int *)(data)), // ip
+                                    *(unsigned long *)(  data+4+*(unsigned int *)(data)), // ip
                                     *(unsigned short *)( data+4+*(unsigned int *)(data)+4), // port
                                     *(unsigned int *)(   data) // nameLen
                         ));
@@ -271,7 +271,9 @@ char *getClientAddr(struct sockaddr_in * client_addr){
 }
 
 int send_data_buff(int sd, DATA * data, unsigned int *rtnlen, unsigned char *buff){
+	static int i;
     toData(data, buff);
+    if(!rtnlen) rtnlen=&i;
     if((*rtnlen=send(sd,buff,getDataLen(buff),0))<0){
         printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
         return -1;
@@ -281,12 +283,15 @@ int send_data_buff(int sd, DATA * data, unsigned int *rtnlen, unsigned char *buf
 int send_data(int sd, DATA * data, unsigned int *rtnlen){
 	// don't try to use static since there are more than one thread may call
     unsigned char * buff = malloc(2656);
-    int result = send_data_buff(int sd, DATA * data, int *rtnlen, buff);
+    int result = send_data_buff(sd, data, rtnlen, buff);
     free(buff);
     return result;
 }
 
 DATA *recv_data_buff(int sd, unsigned int *rtnlen, int *status, unsigned char *buff){
+	static int i;
+    if(!rtnlen) rtnlen=&i;
+    if(!status) status=&i;
     if(((*rtnlen)=recv(sd,buff,2656,0))<=0){
         if(errno == 0){
             *status = -2;
@@ -302,7 +307,7 @@ DATA *recv_data_buff(int sd, unsigned int *rtnlen, int *status, unsigned char *b
 DATA *recv_data(int sd, unsigned int *rtnlen, int *status){
 	// don't try to use static since there are more than one thread may call
     unsigned char * buff = malloc(2656);
-    DATA *tmp = recv_data_buff(int sd, int *rtnlen, int *status, unsigned char *buff)
+    DATA *tmp = recv_data_buff(sd, rtnlen, status, buff);
     free(buff);
     return tmp;
 }

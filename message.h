@@ -23,7 +23,7 @@
 
 typedef struct arg{
     unsigned int nameLen;
-    unsigned int ip;
+    unsigned long ip;
     char *name;    // name != null --> server client list
     unsigned short port;    // port 0 for client-to-client connection
     char msg[256]; // name == null --> message
@@ -39,7 +39,7 @@ typedef struct header{
 
 ARG *newMsg(char *str, unsigned int strLen);
 
-ARG *newClient(char *name, unsigned int ip, unsigned short port, unsigned int nameLen);
+ARG *newClient(char *name, unsigned long ip, unsigned short port, unsigned int nameLen);
 
 // return 1 == success
 // return 0 == msg too long
@@ -74,7 +74,7 @@ int send_data_buff(int sd, DATA * data, unsigned int *rtnlen, unsigned char *buf
 
 int send_data(int sd, DATA * data, unsigned int *rtnlen);
 
-int recv_data_buff(int sd, DATA * data, unsigned int *rtnlen, unsigned char *buff);
+DATA *recv_data_buff(int sd, unsigned int *rtnlen, int *status, unsigned char *buff);
 
 DATA *recv_data(int sd, unsigned int *rtnlen, int *status);
 

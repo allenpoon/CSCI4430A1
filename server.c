@@ -28,7 +28,7 @@ int online(ARG *arg, int id){
 	if(peers[id]==NULL){
 		peers[id] = malloc(sizeof(ARG));
 		memcpy(peers[id], arg, sizeof(ARG));
-		return i;
+		return id;
 	}
 	return -1;
 }
@@ -50,7 +50,7 @@ void printOnlineList(){
 	printf("Listing online clients: \n");
 	for(i = 0; i < 10; i++){
 		if(peers[i]!=NULL){
-			printf("ID(%d)ONLINE: IP: %x Port: %d Name: %s\n", i, peers[i]->ip,peers[i]->port, peers[i]->name);
+			printf("ID(%d)ONLINE: IP: %lx Port: %d Name: %s\n", i, peers[i]->ip,peers[i]->port, peers[i]->name);
 		}
 	}
 }
@@ -110,8 +110,8 @@ void *accepted(void *csd){
 	    		printName(data->arg->name, data->arg->nameLen);
 	    		printf("\n");
 	    		data->arg->ip = ntohl(p->client_addr.sin_addr.s_addr);
-	    		online(data->arg, id);
-	    		if(id >= 0 && id < 10){
+	    		status = online(data->arg, id);
+	    		if(status >= 0 && status < 10){
 	    			reply = newHeader();
 	    			reply->command = LOGIN_OK;
 	    			reply->length = 1;
@@ -122,7 +122,7 @@ void *accepted(void *csd){
 						ntohs(p->client_addr.sin_port));
 	    			reply = newHeader();
 	    			reply->command = ERROR;
-	    			switch(id){
+	    			switch(status){
 	    				case -1:
 	    					printf("maximum connection exceed!");
 	    					reply->error = TOO_MUCH_CONN;
