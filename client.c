@@ -244,22 +244,26 @@ void goOnline(){
 
 
 void readMsg(){
-    int i,j;
+    int i,j,k=0;
     printf("\n");
     for(i=1;i<=MAX_CLIENT;i++){
         if(connInfo[i] && connInfo[i]->arg){
             j=0;
-            printf("+--- Message From '%s'\n", connInfo[i]->arg->name);
             while(connInfo[i]->arg){
-                printf("+------- #%d\n", ++j);
+                printf("+--- Message #%-2dFrom '%s'\n", ++j, connInfo[i]->arg->name);
                 printf("%s", connInfo[i]->arg->msg);
+                printf("+--------------------------------\n\n", connInfo[i]->arg->name);
 // need to set mutex
                 removeArg(connInfo[i], connInfo[i]->arg);
+                k++;
             }
             printf("+--------------------------------\n\n", connInfo[i]->arg->name);
         }
     }
-    printf("End of all unreaded messages.\n\n");
+    if(k==0){
+        printf("[ No unread message. ]\n");
+    }
+    printf("\n");
 }
 
 void showClientList(){
