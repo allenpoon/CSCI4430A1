@@ -64,7 +64,6 @@ void *clientRecver(void * id){
 // a active client thread
 int activeClient(int thread_id){
 	ARG *tmp = connInfo[0]->arg;
-	tmp = connInfo[0]->arg;
 	int i;
 	// finding requested client
 	while(tmp && strcmp(tmp->name, tmpName)){
@@ -200,7 +199,7 @@ void goOnline(){
         tmpData = recv_data(socket_serv,&len,&i);
         if(!i){
             //ERROR
-            close(socket_serv);
+            close(socket_serv );
             return;
         }
 
