@@ -97,7 +97,7 @@ void toData(DATA *data, unsigned char *result){
                 *((int *)(result+1)) = data->arg->nameLen;
                 strncpy(result+1+4, data->arg->name, data->arg->nameLen);
             // Add NULL char to state termination of String
-                *(result+1+4+data->arg->nameLen-1) = '\0';
+                *(result+1+4+data->arg->nameLen) = '\0';
                 *((int *)(result+1+4+data->arg->nameLen)) = 2;
                 *((short *)(result+1+4+data->arg->nameLen+4)) = data->arg->port;
                 *(result+1+4+data->arg->nameLen+4+2) = 0;
@@ -109,22 +109,20 @@ void toData(DATA *data, unsigned char *result){
                 *(result+1) = 0;
                 break;
             case GET_LIST_OK:
-                *result=LOGIN;
+                *result=GET_LIST_OK;
                 counter = ((int *)(result+1));
                 *counter = 0;
                 arg = data->arg;
                 // shift 5 byte
                 result = result + 5;
-                
                 for(i=0;i<10 && arg;i++){
                     *(int *)(result)= arg->nameLen;
                     *counter += 4 + arg->nameLen+4+2; // update arg size
                     strncpy(result+4, arg->name, arg->nameLen);
-                    *(int *)(result+4+arg->nameLen) = arg->ip;
-                    *(short *)(result+4+arg->nameLen+4) = arg->port;
-                    arg=arg->arg;
+                    *(unsigned int *)(result+4+arg->nameLen) = arg->ip;
+                    *(unsigned short *)(result+4+arg->nameLen+4) = arg->port;
                     *(result = result+4+arg->nameLen+4+2) = 0; // shift (4+arg->nameLen+4+2) byte and set null to end
-                    
+                    arg=arg->arg;
                 }
                 break;
             case HELLO:
@@ -185,6 +183,7 @@ DATA *parseData(unsigned char *data){
                                     *(int *)(data) // nameLen
                         ));
                 counter -= 4 + *(int *)(data)+4+2;
+                data += 4 + *(int *)(data)+4+2;
             }
             break;
         case HELLO:
@@ -210,6 +209,7 @@ DATA * newHeader(){
     DATA *header=malloc(sizeof(DATA));
     header->command=0;
     header->arg=0;
+    header->length =0;
     return header;
 }
 
@@ -232,6 +232,7 @@ int freeArg(ARG * arg){
             free(arg->name);
         }
         free(arg);
+        arg = NULL;
     }
     return 1;
 }
@@ -253,6 +254,7 @@ int getDataLen(unsigned char *data){
             // completed lol
             break;
     }
+    return result;
 }
 
 char *getClientAddr(struct sockaddr_in * client_addr){
@@ -267,9 +269,8 @@ char *getClientAddr(struct sockaddr_in * client_addr){
 
 int send_data(int sd, DATA * data, int *rtnlen){
     char * buff = malloc(2656);
-    printf("Sending command: %d\n", data->command);
     toData(data, buff);
-    if(((*rtnlen)=send(sd,buff,data->length,0))<0){
+    if((*rtnlen=send(sd,buff,getDataLen(buff),0))<0){
         printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
         return -1;
     }
@@ -280,7 +281,6 @@ DATA *recv_data(int sd, int *rtnlen, int *status){
     char * buff = malloc(2656);
     if(((*rtnlen)=recv(sd,buff,2656,0))<=0){
         if(errno == 0){
-            printf("client close: %s (Errno:%d)\n", strerror(errno),errno);
             *status = -2;
             return NULL;
         }

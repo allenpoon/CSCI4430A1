@@ -11,6 +11,23 @@
 # define IPADDR "127.0.0.1"
 # define PORT 12310
 
+
+void printName(char * name, int len){
+	int i;
+	for(i=0; i<len;i++){
+		printf("%c", name[i]);
+	}
+}
+
+void printClientList(ARG * arg){
+	if(arg!=NULL){
+		printf("Client: ");
+		printName(arg->name,arg->nameLen);
+		printf(" IP: %x Port: %d\n", arg->ip, arg->port);
+		printClientList(arg->arg);
+	}
+}
+
 int main(int argc, char** argv){
 	/*if(connect(sd,(struct sockaddr *)&server_addr,sizeof(server_addr))<0){
 		printf("connection error: %s (Errno:%d)\n",strerror(errno),errno);
@@ -77,8 +94,10 @@ int main(int argc, char** argv){
 				DATA *data = newHeader();
 				data->command = LOGIN;
 				nameLen = strlen(name);
-				data->arg = newClient(name, 0, (unsigned short) ntohs(client_addr.sin_port), nameLen) ;
-				data->length = 1+4+4+nameLen+4+2+1;
+				nameLen--;
+				*(name+nameLen) = '\0';
+				addClient(data, newClient(name, 0, (unsigned short) ntohs(client_addr.sin_port), nameLen));
+				//data->length = 1+4+4+nameLen+4+2+1;
 				// Send LOGIN 
 				if(!send_data(sd,data,&len)) continue;
 				// Recv SERVER STATUS
@@ -86,7 +105,7 @@ int main(int argc, char** argv){
 				data = recv_data(sd,&len,&status);
 				if(!status) continue;
 				// Add null char to the end of name
-				*(name+nameLen-1) = '\0';
+				
 
 				switch(data->command){
 					case LOGIN_OK:
@@ -110,38 +129,41 @@ int main(int argc, char** argv){
 						exit(0);
 						break;
 				}
+				if(data->command == LOGIN_OK){
+					while(1){
+						do{
+							printf("+--- Menu ----------------+\n| 1) List of online users |\n| 2) Read unread message  |\n| 3) Chat with ...        |\n| 4) Quit                 |\n+-------------------------+\nYour choice >> ");
+							scanf("%d", &choice);
+						}while(choice <= 0 || choice > 4);
 
-				do{
-					if(data->command == LOGIN_OK){
-						printf("+--- Menu ----------------+\n| 1) List of online users |\n| 2) Read unread message  |\n| 3) Chat with ...        |\n| 4) Quit                 |\n+-------------------------+\nYour choice >> ");
-						scanf("%d", &choice);
+						switch(choice){
+							case 1:
+								freeData(data);
+								data = newHeader();
+								data->command = GET_LIST;
+								data->length = 1;
+								if(!send_data(sd,data,&len)) continue;
+								freeData(data);
+								data = recv_data(sd,&len,&status);
+								if(!status) continue;
+								if(data->command == GET_LIST_OK){
+									printClientList(data->arg);
+								}else{
+									printf("GetListError!\n");
+								}
+								break;
+							case 2:
+								break;
+							case 3:
+								break;
+							case 4:
+								printf("[ Closing connection... ]\n");
+								close(sd);
+								exit(0);
+								break;
+						}
 					}
-				}while(choice <= 0 || choice > 4);
-
-				switch(choice){
-					case 1:
-						freeData(data);
-						data = newHeader();
-						data->command = GET_LIST;
-						data->length = 1;
-						if(!send_data(sd,data,&len)) continue;
-						freeData(data);
-						data = recv_data(sd,&len,&status);
-						if(!status) continue;
-						break;
-					case 2:
-						break;
-					case 3:
-						break;
-					case 4:
-						printf("[ Closing connection... ]\n");
-						close(sd);
-						exit(0);
-						break;
 				}
-
-				close(0);
-				exit(0);
 				break;
 		}
 	}
