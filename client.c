@@ -133,29 +133,103 @@ int activeClient(int thread_id){
 }
 
 // a passive client thread
-int passiveClient(){
+void passiveClient(int client_sd, unsigned long ip, unsigned short port){
+	int i,j;
+	DATA *tmp;
+	pthread_mutex_lock(&conn_mutex);
+    // finding available thread
+    for(i=1;i<MAX_CLIENT+1 && thread[i]; i++);
+    if(i>=MAX_CLIENT+1){
+    	tmp = newHeader();
+    	tmp->command = ERROR;
+		tmp->error = TOO_MUCH_CONN;
+		send_data(client_sd, tmp, NULL);
+		freeData(tmp);
+		close(client_sd);
+    }else{
+	 	sockBuff[i]
+    	socket_id[i]
+    	thread[i]
+		connInfo[i]
+    	for(j=1;i<MAX_CLIENT+1 && (!connInfo || (connInfo[j]->ip ==ip && connInfo[j]->port==port));j++);
+    	if(j<MAX_CLIENT+1){ // same ip and port connection
+			tmp=newHeader();
+			tmp->command = ERROR;
+			tmp->error = SAME_CONN;
+			send_data(client_sd, tmp, 0);
+			freeData(tmp);
+			close(client_sd);
+    	}else{
+    		tmp = recv_data_buff(client_sd, 0,0,sockBuff[i]);
+    		if(tmp->command == HELLO){
+    			for(j=1;j<MAX_CLIENT+1 && (!connInfo || strcmp(connInfo[j]->arg->name,tmp->arg->name));
+    			if(j>=MAX_CLIENT+1){ // same client
+					tmp=newHeader();
+					tmp->command = ERROR;
+					tmp->error = SAME_NAME;
+					send_data_buff(client_sd, tmp, 0, sockBuff[i]);
+					freeData(tmp);
+					close(client_sd);
+    			}else{
+    				// basically accepted
+    				// store Header
+					connInfo[i] = tmp;
+    				// check list
+    				tmp =connInfo[0];
+    				
+    			}
+    		}else{
+    			printf("Unkown Command Recive");
+    			close(client_sd);
+    		}
+    	}
+    }
     
+    pthread_mutex_unlock(&conn_mutex);
 }
 
 void listening(){
+	int i=0;
+	int client_sd;
+	struct sockaddr_in client_addr;
+    int addr_len;
+	pthread_mutex_lock(&port_mutex);
+	
     socket_listen = socket(AF_INET, SOCK_STREAM, 0);
     memset(&local_addr,0,sizeof(local_addr));
     local_addr.sin_family = AF_INET;
     local_addr.sin_addr.s_addr = htonl(INADDR_ANY);
     local_addr.sin_port = 0;
 
-    printf("[ Opening an arbitrary listening port");
+    printf("Opening an arbitrary listening port ... ");
 
-    if(bind(socket_listen, (struct sockaddr *) &local_addr, sizeof(local_addr)) < 0){
-        printf("Socket cannot bind to a port. %s \nError number: %d\n", strerror(errno), errno);
+    while(bind(socket_listen, (struct sockaddr *) &local_addr, sizeof(local_addr)) < 0 && i<5){
+        printf("\nSocket cannot bind to a port. %s", strerror(errno));
+        printf("\nError number: %d\n", errno);
+        i++<5 && printf("\nRetrying Binding ... ");
     }
+	if(i<5){
+	    int addr_size = sizeof(local_addr);
+	    getsockname(socket_listen, (struct sockaddr *) &local_addr, &addr_size);
+	    printf("done\n");
+	    printf("Listening Port: %d\n", ntohs ( ((struct sockaddr_in *)&local_addr)->sin_port ));
 
-    int addr_size = sizeof(local_addr);
-    getsockname(socket_listen, (struct sockaddr *) &local_addr, &addr_size);
-    printf(" (%d) ... done ]\n", ntohs ( ((struct sockaddr_in *)&local_addr)->sin_port ));
+	    port = ntohs ( ((struct sockaddr_in *)&local_addr)->sin_port );
 
-    port = ntohs ( ((struct sockaddr_in *)&local_addr)->sin_port );
-    port_assigned = 1;
+	}else{
+		port = -1;
+	}
+    pthread_mutex_unlock(&port_mutex);
+    
+//    start accept client
+	while(1){
+		if((client_sd = accept(sd, (struct sockaddr *) &client_addr, &addr_len) ) < 0){
+			printf("Connection error. Accepting client failed. %s \nError number: %d\n", strerror(errno), errno);
+			break; // end of listening
+		}
+		passiveClient(client_sd, client_addr.sin_addr.s_addr, client_addr.sin_port);
+	}
+	// clear all memory, close all stream
 }
 
 
@@ -163,8 +237,10 @@ void listening(){
 void goOnline(){
     DATA *tmpData;
 	int i, len;
+
+    // start listen
+    pthread_create(&thread[0], NULL, (void *) &listening, NULL);
     
-    /*
     // waiting for listen thread after binding port
     while(!port){
         // waiting if listen thread locked
@@ -174,6 +250,7 @@ void goOnline(){
         pthread_mutex_unlock(&port_mutex);
         sleep(0);
     }
+<<<<<<< HEAD
     */
     
     // connect to server
@@ -230,8 +307,75 @@ void goOnline(){
                 freeData(tmpData);
                 break;
         }
+=======
+	if(port < 0){
+		printf("We cannot bind a port for listening, Fail to online.\n");
+	}else{
+	    // connect to server
+	    socket_serv = socket(AF_INET,SOCK_STREAM,0);
+
+		for(i=0;i<5 && connect(socket_serv,(struct sockaddr *)&server_addr,sizeof(server_addr))<0 ;i++){
+			printf("connection error: %s (Errno:%d)\n",strerror(errno),errno);
+			printf("Retry Connecting to [%s:%hd] ...\n", getClientAddr(&server_addr), ntohs(server_addr.sin_port));
+		}
+		if(i==5){
+	        printf("Cannot Connect to [%s:%hd].\n", getClientAddr(&server_addr), ntohs(server_addr.sin_port));
+	    }else{
+	        // connection completed
+	        // ask for user action
+	        printf("[ Logging in ");
+							fflush(stdout);  	// --Just
+	        tmpData = newHeader();
+	        
+	        				putchar('.'); 		// --for
+	        tmpData->command = LOGIN;
+	        addClient(tmpData, newClient(name, 0, port, strlen(name)));
+	        				putchar('.'); 		// -- fun
+	        if(!send_data(socket_serv,tmpData,&len)){
+	        	freeData(tmpData);
+	            //ERROR
+	            printf("Oops, We cannot send data to server.\n");
+	            printf("Going offline ...\n");
+	            close(socket_serv);
+	            return;
+	        }
+	        				putchar('.'); 		// --Just
+
+	        freeData(tmpData);
+	        tmpData = recv_data(socket_serv,&len,&i);
+	        				putchar('.'); 		// --for
+	        if(!i){
+	        	freeData(tmpData);
+	            //ERROR
+	            close(socket_serv );
+	            return;
+	        }
+	        				putchar('.'); 		// --fun
+	        switch(tmpData->command){
+	            case LOGIN_OK:
+	                printf("\"Hello, %s!\" ]\n", name); // End of Just for fun
+	                freeData(tmpData);
+	                loginedMenu();
+	                break;
+	            case ERROR:
+	                switch(tmpData->error){
+	                    case SAME_NAME:
+	                        printf("\"Sorry, '%s' is already there!\"\n",name);
+	                        break;
+	                    case SAME_CONN:
+	                        printf("\"Sorry, there is same ip and port of client.\"\n");
+	                        break;
+	                    case TOO_MUCH_CONN:
+	                        printf("\"Sorry, there are too much client.\"\n");
+	                        break;
+	                }
+	                freeData(tmpData);
+	                break;
+	        }
+	    }
+    	close(socket_serv);
+>>>>>>> 60a4c1ddf165cfe9d0073ae6e860902bee58abb2
     }
-    close(socket_serv);
 // close all socket, close all thread, free memory
 }
 
@@ -259,22 +403,25 @@ void readMsg(){
     printf("\n");
 }
 
+void renewClientList(){
+    DATA *tmpData;
+	tmpData = newHeader();
+    tmpData->command = GET_LIST;
+    send_data_buff(socket_serv, tmpData, 0, sockBuff[0]);
+    freeData(tmpData);
+    tmpData=recv(socket_serv, sockBuff[0], BUFF_LEN, 0);
+// something error handling
+//    if(i==getDataLen(sockBuff[0]));
+    tmpData = parseData(sockBuff[0]);
+
+}
+
 void showClientList(){
     DATA *tmpData;
     ARG * tmpArg;
     int i;
     printf("Retrieving from server .... ");
-    tmpData = newHeader();
-    tmpData->command = GET_LIST;
-    toData(tmpData, sockBuff[0]);
-    freeData(tmpData);
-    i=getDataLen(sockBuff[0]);
-// something error handling
-    i==send(socket_serv, sockBuff[0], i, 0); 
-    i=recv(socket_serv, sockBuff[0], BUFF_LEN, 0);
-// something error handling
-//    if(i==getDataLen(sockBuff[0]));
-    tmpData = parseData(sockBuff[0]);
+    
     printf("Done.");
     if(tmpData->command == GET_LIST_OK){
         if(connInfo[0]){
@@ -452,10 +599,6 @@ int main(int argc, char** argv){
         exit(0);
     }
 
-    port_assigned = -1;
-    // start listen
-    pthread_create(&thread[0], NULL, (void *) &listening, NULL);
-    while(port_assigned < 0);
     
     while(1){
         port=0; // reset port
