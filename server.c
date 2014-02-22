@@ -12,8 +12,9 @@
 #include "server.h"
 
 ARG *peers[10];
+PEER passing[10];
 
-int online(ARG *arg){
+int online(ARG *arg, int id){
 	int i;
 	for(i=0; i<10; i++){
 		if(peers[i]==NULL) continue;
@@ -24,12 +25,10 @@ int online(ARG *arg){
 		if(peers[i]->ip == arg->ip && peers[i]->port == arg->port)
 			return -3;
 	}
-	for(i=0; i<10; i++){
-		if(peers[i]==NULL){
-			peers[i] = malloc(sizeof(ARG));
-			memcpy(peers[i], arg, sizeof(ARG));
-			return i;
-		}
+	if(peers[id]==NULL){
+		peers[id] = malloc(sizeof(ARG));
+		memcpy(peers[id], arg, sizeof(ARG));
+		return i;
 	}
 	return -1;
 }
@@ -85,7 +84,8 @@ void *accepted(void *csd){
 	DATA *reply = malloc(sizeof(DATA));
 	int client_sd = p->client_sd;
 	char *buff = malloc(2656);
-	int len, id, status;
+	int len, status;
+	int id = p->id;
 	
 	while(1){
 		data = recv_data(client_sd,&len,&status);
@@ -110,8 +110,8 @@ void *accepted(void *csd){
 	    		printName(data->arg->name, data->arg->nameLen);
 	    		printf("\n");
 	    		data->arg->ip = ntohl(p->client_addr.sin_addr.s_addr);
-	    		id = online(data->arg);
-	    		if(id >= 0){
+	    		online(data->arg, id);
+	    		if(id >= 0 && id < 10){
 	    			reply = newHeader();
 	    			reply->command = LOGIN_OK;
 	    			reply->length = 1;
@@ -179,7 +179,7 @@ int main(int argc, char **argv){
     int len;
     int i;
 
-    pthread_t pth;
+    pthread_t pth[10];
 
 	struct sockaddr_in server_addr;
 	struct sockaddr_in client_addr;
@@ -210,13 +210,37 @@ int main(int argc, char **argv){
 		printf("[Connected] Client: %s:%d\n", 
 			getClientAddr(&client_addr), 
 			htons(client_addr.sin_port));
-		PEER passing;
-		passing.client_sd = client_sd;
-		passing.sd = sd;
-		passing.client_addr = client_addr;
-		pthread_create(&pth, NULL, accepted, (void *) &passing);
+		for(i=0;i<10;i++){
+			if(peers[i]==NULL){
+				passing[i].id = i;
+				passing[i].client_sd = client_sd;
+				passing[i].sd = sd;
+				passing[i].client_addr = client_addr;
+				pthread_create(&pth[i], NULL, accepted, (void *) &passing[i]);
+				break;
+			}
+		}
+		if(i==10){
+			DATA *reply = newHeader();
+			printf("[ERROR] Client %s:%d ", 
+				getClientAddr(&client_addr),
+				ntohs(client_addr.sin_port));
+			reply = newHeader();
+			reply->command = ERROR;
+			printf("maximum connection exceed!");
+			reply->error = TOO_MUCH_CONN;
+			printf("\n");
+			reply->length = 7;
+			send_data(client_sd,reply,&len);
+			close(client_sd);
+			printf("[Disconnected] Client %s:%d\n", 
+				getClientAddr(&client_addr),
+				ntohs(client_addr.sin_port));
+		}
+		
 	}
-	pthread_join(pth,NULL);
+	for(i=0;i<10;i++)
+		pthread_join(pth[i],NULL);
 
 	close(sd);
     return 0;
