@@ -17,7 +17,8 @@
 # define IPADDR "127.0.0.1"
 # define PORT 12310
 
-
+void loginedMenu();
+void closeAllConn();
 
 // self info
 // NAME_LEN + 1 end char + 1 check too long name char
@@ -29,7 +30,8 @@ struct sockaddr_in tmp_addr;
 
 
 // listening port info
-short port=0;
+short port_assigned = -1;
+unsigned short port=0;
 pthread_mutex_t port_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 
@@ -47,13 +49,14 @@ pthread_t thread[MAX_CLIENT+1];
 // 0 == listen, 1..10 == client
 int socket_id[MAX_CLIENT+1];
 int socket_serv;
+int socket_listen;
 // 0 == server, 1..10 == client
 unsigned char sockBuff[MAX_CLIENT+1][BUFF_LEN];
 
 // new active client data passing
 char *newClientName;
 
-void clientRecver(void * id){
+void *clientRecver(void * id){
 	int thread_id = *(int *) id;
 	
 }
@@ -76,10 +79,10 @@ int activeClient(int thread_id){
 		
 		for(i=0;i<5 && connect(socket_id[thread_id],(struct sockaddr *)&tmp_addr,sizeof(tmp_addr))<0 ;i++){
 			printf("connection error: %s (Errno:%d)\n",strerror(errno),errno);
-			printf("Retry Connecting to [%s:%hd] ...\n", inet_ntoa(tmp_addr), tmp_addr.sin_port);
+			printf("Retry Connecting to [%s:%hd] ...\n", (char *) inet_ntoa(tmp_addr), tmp_addr.sin_port);
 		}
 		if(i==5){
-	        printf("Cannot Connect to [%s:%hd].\n", inet_ntoa(tmp_addr), tmp_addr.sin_port);
+	        printf("Cannot Connect to [%s:%hd].\n", (char *) inet_ntoa(tmp_addr), tmp_addr.sin_port);
 	    }else{
 			printf("Connecting to '%s' ... ", tmpName);
 			connInfo[thread_id]=newHeader();
@@ -89,9 +92,9 @@ int activeClient(int thread_id){
 			freeData(connInfo[thread_id]);
 			
 			i=getDataLen(sockBuff[thread_id]);// something error handling
-	        i==send(connInfo[thread_id], sockBuff[thread_id], i, 0);
+	        i=send(socket_id[thread_id], sockBuff[thread_id], i, 0);
 	// something error handling
-	        i=recv(connInfo[thread_id], sockBuff[thread_id], BUFF_LEN, 0);
+	        i=recv(socket_id[thread_id], sockBuff[thread_id], BUFF_LEN, 0);
 	// something error handling
 	//        if(i==getDataLen(sockBuff[0]));
 			connInfo[thread_id] = parseData(sockBuff[0]);
@@ -128,141 +131,95 @@ int passiveClient(){
     
 }
 
-int listening(){
-    
-}
+void listening(){
+    socket_listen = socket(AF_INET, SOCK_STREAM, 0);
+    memset(&local_addr,0,sizeof(local_addr));
+    local_addr.sin_family = AF_INET;
+    local_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    local_addr.sin_port = 0;
 
+    printf("[ Opening an arbitrary listening port");
 
-int main(int argc, char** argv){
-    // Menu option saver
-	int choice;
-	int i;
-	
-	if(argc < 3){
-		printf("Usage: client.out [IP Address] [Port]\n");
-		exit(0);
-	}
-	
-	// init server addr
-	memset(&server_addr,0,sizeof(server_addr));
-	server_addr.sin_family=AF_INET;
-	server_addr.sin_addr.s_addr=inet_addr(argv[1]);
-	server_addr.sin_port=htons(atoi(argv[2]));
-	
-	if(server_addr.sin_port == 0 || server_addr.sin_addr.s_addr ==  ( in_addr_t)-1){
-		printf("Invalid [IP Address] or [Port]");
-		printf("Usage: client.out [IP Address] [Port]\n");
-		exit(0);
+    if(bind(socket_listen, (struct sockaddr *) &local_addr, sizeof(local_addr)) < 0){
+        printf("Socket cannot bind to a port. %s \nError number: %d\n", strerror(errno), errno);
     }
-	
-	while(1){
-        port=0; // reset port
-        for(i=0;i<12;i++){
-            socket_id[i]=0;
-            if(i==11) continue;
-            sockBuff[i][0]=connInfo[i]=thread[i]=0;
-        }
-		while(1){
-    		printf("+--- Menu ----------------+\n");
-    		printf("| 1) Go online            |\n");
-    		printf("| 2) Quit                 |\n");
-    		printf("+-------------------------+\n");
-		    printf("Your choice >> ");
-    		if(scanf("%i", &choice)){
-    		  if(choice > 0 && choice < 3) break;
-            }else if(getchar()==EOF){
-                choice = 2;
-                printf("Standard Input Closed.\n");
-                break;
-            }
-			printf("Please enter valid number!\n");
-        }
-        if(choice & 1){
-            do{
-                printf("Screen name [enter to return to menu] >> ");
-        		fgets(name, NAME_LEN+2, stdin);
-        		// check valid input
-        		for(i=0;i<NAME_LEN+1;i++){
-                    if(name[i] >= 'a' && name[i] <='z') continue;
-                    if(name[i] >= 'A' && name[i] <='Z') continue;
-                    if(name[i] >= '0' && name[i] <='9') continue;
-                    if(name[i] =='\n'){ // end of str
-                        name[i]=0;
-                        break;
-                    }
-                    
-                    // too long name occur; or
-                    // invalid char occur
-                    // index :            2 2 2
-                    //                    5 5 5
-                    //        1 2 3 ..... 5 6 7
-                    // input :a b c ..... d a \n   
-                    // store :a b c ..... d a 0
-                    // too long name
-                    fflush(stdin);
-                    name[0]=0;
-                }
-            }while(!name[0]);
-            if(!i) continue; // press enter only
-            goOnline();
-        }else{
-            printf("Bye.\n");
-            break;
-        }
-	}
-    // end of program
-    return 0;
+
+    int addr_size = sizeof(local_addr);
+    getsockname(socket_listen, (struct sockaddr *) &local_addr, &addr_size);
+    printf(" (%d) ... done ]\n", ntohs ( ((struct sockaddr_in *)&local_addr)->sin_port ));
+
+    port = ntohs ( ((struct sockaddr_in *)&local_addr)->sin_port );
+    port_assigned = 1;
 }
+
+
 
 void goOnline(){
     DATA *tmpData;
-	int i;
-    // start listen
-    pthread_create(&thread[0], NULL, listening, NULL);
+	int i, len;
     
+    /*
     // waiting for listen thread after binding port
     while(!port){
         // waiting if listen thread locked
-        pthread_mutex_lock(port_mutex); 
+        pthread_mutex_lock(&port_mutex);
         // release lock, prevent dead lock
         // or give time for listen thread lock
-        pthread_mutex_unlock(port_mutex);
+        pthread_mutex_unlock(&port_mutex);
         sleep(0);
     }
+    */
     
     // connect to server
     socket_serv = socket(AF_INET,SOCK_STREAM,0);
+
 	for(i=0;i<5 && connect(socket_serv,(struct sockaddr *)&server_addr,sizeof(server_addr))<0 ;i++){
 		printf("connection error: %s (Errno:%d)\n",strerror(errno),errno);
-		printf("Retry Connecting to [%s:%hd] ...\n", inet_ntoa(server_addr), server_addr.sin_port);
+		printf("Retry Connecting to [%s:%hd] ...\n", getClientAddr(&server_addr), ntohs(server_addr.sin_port));
 	}
 	if(i==5){
-        printf("Cannot Connect to [%s:%hd].\n", inet_ntoa(server_addr), server_addr.sin_port);
+        printf("Cannot Connect to [%s:%hd].\n", getClientAddr(&server_addr), ntohs(server_addr.sin_port));
     }else{
         // connection completed
         // ask for user action
-        printf("Logging in ... ");
+        printf("[ Logging in ... ");
         
         i=sizeof(local_addr);
         getsockname(socket_serv, (struct sockaddr *) &local_addr, &i);
         
         tmpData = newHeader();
         tmpData->command = LOGIN;
-        addClient(tmpData, newClient(name, 0, local_addr.sin_port, strlen(tmpData));
+        addClient(tmpData, newClient(name, 0, ntohs(local_addr.sin_port), strlen(name)));
+        if(!send_data(socket_serv,tmpData,&len)){
+            //ERROR
+            close(socket_serv);
+            return;
+        }
+
+        freeData(tmpData);
+        tmpData = recv_data(socket_serv,&len,&i);
+        if(!i){
+            //ERROR
+            close(socket_serv);
+            return;
+        }
+
+/*        
         toData(tmpData, sockBuff[0]);
         freeData(tmpData);
         
         i=getDataLen(sockBuff[0]);
 // something error handling
-        i==send(socket_serv, sockBuff[0], i, 0);
+        i=send(socket_serv, sockBuff[0], i, 0);
+        */
 // something error handling
-        i=recv(socket_serv, sockBuff[0], BUFF_LEN, 0);
+//        i=recv(socket_serv, sockBuff[0], BUFF_LEN, 0);
 // something error handling
 //        if(i==getDataLen(sockBuff[0]));
-        tmpData = parseData(sockBuff[0]);
+//        tmpData = parseData(sockBuff[0]);
         switch(tmpData->command){
             case LOGIN_OK:
-                printf("\"Hello, %s!\"\n", name);
+                printf("\"Hello, %s!\" ]\n", name);
                 freeData(tmpData);
                 loginedMenu();
                 break;
@@ -286,39 +243,24 @@ void goOnline(){
 // close all socket, close all thread, free memory
 }
 
-void loginedMenu(){
-    int choice;
-    do{
-        do{
-    		printf("+--- Menu ----------------+\n");
-    		printf("| 1) List of online users |\n");
-    		printf("| 2) Read unread message  |\n");
-    		printf("| 3) Chat with ...        |\n");
-    		printf("| 4) Quit                 |\n");
-    		printf("+-------------------------+\n");
-    	    printf("Your choice >> ");
-    		if(scanf("%i", &choice)){
-    		    if(choice > 0 && choice < 5) break;
-            }else if(getchar()==EOF){
-                choice = 4;
-                printf("Standard Input Closed.\n");
-                break;
+
+void readMsg(){
+    int i,j;
+    printf("\n");
+    for(i=1;i<=MAX_CLIENT;i++){
+        if(connInfo[i] && connInfo[i]->arg){
+            j=0;
+            printf("+--- Message From '%s'\n", connInfo[i]->arg->name);
+            while(connInfo[i]->arg){
+                printf("+------- #%d\n", ++j);
+                printf("%s", connInfo[i]->arg->msg);
+// need to set mutex
+                removeArg(connInfo[i], connInfo[i]->arg);
             }
-            choice=0;
-			printf("Please enter valid number!\n");
-        }while(!choice);
-        switch(choice){
-            case 1:
-                showClientList();
-                break;
-            case 2:
-                readMsg();
-                break;
-            case 3:
-                chat();
-                break;
+            printf("+--------------------------------\n\n", connInfo[i]->arg->name);
         }
-    }while(choice != 4);
+    }
+    printf("End of all unreaded messages.\n\n");
 }
 
 void showClientList(){
@@ -348,7 +290,7 @@ void showClientList(){
 		printf("\n");
 		printf("+--- Online List ----------------\n");
 		do{
-		    printf("| %2d) %255s\n", i++, tmpArg->name);
+		    printf("| %2d) %s\n", i++, tmpArg->name);
 		    tmpArg=tmpArg->arg;
         }while(tmpArg);
 		printf("+--------------------------------\n");
@@ -357,33 +299,50 @@ void showClientList(){
     }
 }
 
-void readMsg(){
-	int i,j;
-	printf("\n");
-	for(i=1;i<=MAX_CLIENT;i++){
-		if(connInfo[i] && connInfo[i]->arg){
-			j=0;
-			printf("+--- Message From '%s'\n", connInfo[i]->name);
-			while(connInfo[i]->arg){
-				printf("+------- #%d\n", ++j);
-				printf("%s", connInfo[i]->arg->msg);
-// need to set mutex
-				removeArg(connInfo[i], connInfo[i]->arg);
-			}
-			printf("+--------------------------------\n\n", connInfo[i]->name);
-		}
-	}
-	printf("End of all unreaded messages.\n\n");
+void startConn(){
+    int i,j,counter;
+    char *str = sockBuff[0];
+
+// connection here
+    
+    for(i=1;i<MAX_CLIENT + 1 && !(connInfo[i] && !strcmp(connInfo[i]->arg->name, tmpName));i++);
+    if(i>MAX_CLIENT){
+        pthread_mutex_lock(&conn_mutex);
+        for(i=1;i && j<MAX_CLIENT + 1;i++){
+            if(!thread[i]){
+// create active client
+                activeClient(i);
+                break;
+            }
+        }
+        pthread_mutex_unlock(&conn_mutex);
+    }
+        
+        // thread exist if [ 0 < i < MAX_CLIENT+1 ]
+        if(i<MAX_CLIENT+1){
+            counter =0;
+            printf("\n");
+            printf("+---Type your message to '%s'-------------------\n", tmpName);
+            do{
+                fgets(str+counter, MAX_MSG_LEN+1, stdin);
+                if(!strcmp(".\n", str+counter)){
+                    *(str+counter) = 0;
+                    break;
+                }
+                counter += strlen(str+counter);
+            }while(counter < MAX_MSG_LEN);
+            j=0;
+        }
 }
 
 void chat(){
-	int i;
-	
+    int i;
+    
     do{
         printf("Chat with ? [Enter to return to menu] >> ");
-		fgets(tmpName, NAME_LEN+2, stdin);
-		// check valid input
-		for(i=0;i<NAME_LEN+1;i++){
+        fgets(tmpName, NAME_LEN+2, stdin);
+        // check valid input
+        for(i=0;i<NAME_LEN+1;i++){
             if(tmpName[i] >= 'a' && tmpName[i] <='z') continue;
             if(tmpName[i] >= 'A' && tmpName[i] <='Z') continue;
             if(tmpName[i] >= '0' && tmpName[i] <='9') continue;
@@ -396,45 +355,53 @@ void chat(){
         }
     }while(!tmpName[0]);
     if(i){
-		startConn();
-	}
+        startConn();
+    }
 }
 
-void startConn(){
-	int i,counter;
-	char *str = sockBuff[0];
-
-// connection here
-	
-	for(i=1;i<MAX_CLIENT + 1 && !(connInfo[i] && !strcmp(connInfo[i]->arg->name, tmpName));i++);
-	if(i>MAX_CLIENT){
-    	pthread_mutex_lock(conn_mutex);
-		for(i=1;j && i<MAX_CLIENT + 1;i++){
-			if(!thread[i]){
-// create active client
-				activeClient(i);
-				break;
-			}
-		}
-    	pthread_mutex_unlock(conn_mutex);
-	}
-		
-		// thread exist if [ 0 < i < MAX_CLIENT+1 ]
-		if(i<MAX_CLIENT+1){
-			counter =0;
-			printf("\n");
-			printf("+---Type your message to '%s'-------------------\n", tmpName);
-			do{
-				fgets(str+counter, MAX_MSG_LEN+1, stdin);
-				if(!strcmp(".\n", str+counter)){
-					*(str+counter) = 0;
-					break;
-				}
-				counter += strlen(str+counter);
-			}while(counter < MAX_MSG_LEN);
-			j=0;
-		}
+void loginedMenu(){
+    int choice;
+    do{
+        do{
+            printf("+--- Menu ----------------+\n");
+            printf("| 1) List of online users |\n");
+            printf("| 2) Read unread message  |\n");
+            printf("| 3) Chat with ...        |\n");
+            printf("| 4) Quit                 |\n");
+            printf("+-------------------------+\n");
+            printf("Your choice >> ");
+            if(scanf("%i", &choice)){
+                if(choice > 0 && choice < 5) break;
+            }else if(getchar()==EOF){
+                choice = 4;
+                printf("Standard Input Closed.\n");
+                break;
+            }
+            choice=0;
+            printf("Please enter valid number!\n");
+        }while(!choice);
+        switch(choice){
+            case 1:
+                showClientList();
+                break;
+            case 2:
+                readMsg();
+                break;
+            case 3:
+                chat();
+                break;
+            case 4:
+                closeAllConn();
+                printf("[ Have a nice day. ]\n");
+                exit(0);
+        }
+    }while(choice != 4);
 }
+
+
+
+
+
 
 // close all thread and socket
 // 1. close all passive and active client
@@ -445,12 +412,113 @@ void startConn(){
 // 5. reset all thread id
 void closeAllConn(){
     static int i;
+
+    printf("[ Logging off ... ");
+    close(socket_serv);
+
+    printf("done ]\n[ Disconnecting from all client ... ");
+    close(socket_listen);
     for(i=MAX_CLIENT; i>=0; i--){
         close(socket_id[i]);
+        
         socket_id[i]=0; // reset socket_id
     }
+    printf("done ]\n");
+
     for(i=MAX_CLIENT; i>=0; i--){
-        thread[i] && pthread_join(thread[i]); // wait for all thread end by themselves
+        thread[i] && pthread_join(thread[i], NULL); // wait for all thread end by themselves
         thread[i]=0; // reset thread
     }
+}
+
+
+int main(int argc, char** argv){
+    // Menu option saver
+    int choice;
+    int i;
+    
+    if(argc < 3){
+        printf("Usage: client.out [IP Address] [Port]\n");
+        exit(0);
+    }
+    
+    // init server addr
+    memset(&server_addr,0,sizeof(server_addr));
+    server_addr.sin_family=AF_INET;
+    server_addr.sin_addr.s_addr=inet_addr(argv[1]);
+    server_addr.sin_port=htons(atoi(argv[2]));
+    
+    if(server_addr.sin_port == 0 || server_addr.sin_addr.s_addr ==  ( in_addr_t)-1){
+        printf("Invalid [IP Address] or [Port]");
+        printf("Usage: client.out [IP Address] [Port]\n");
+        exit(0);
+    }
+
+    port_assigned = -1;
+    // start listen
+    pthread_create(&thread[0], NULL, (void *) &listening, NULL);
+    while(port_assigned < 0);
+    
+    while(1){
+        port=0; // reset port
+        for(i=0;i<12;i++){
+            socket_id[i]=0;
+            if(i==11) continue;
+            sockBuff[i][0] = 0;
+            thread[i] = 0;
+            connInfo[i] = 0;
+        }
+        while(1){
+            printf("+--- Menu ----------------+\n");
+            printf("| 1) Go online            |\n");
+            printf("| 2) Quit                 |\n");
+            printf("+-------------------------+\n");
+            printf("Your choice >> ");
+            if(scanf("%i", &choice)){
+                if(choice > 0 && choice < 3) break;
+            }else if(getchar()==EOF){
+                choice = 2;
+                printf("Standard Input Closed.\n");
+                break;
+            }
+            printf("Please enter valid number!\n");
+        }
+        if(choice & 1){
+            do{
+                getchar();
+                printf("Screen name [enter to return to menu] >> ");
+                //fgets(name, NAME_LEN+2, stdin);
+                fgets(name, sizeof(name), stdin);
+                // check valid input
+                for(i=0;i<strlen(name);i++){
+                    if(name[i] >= 'a' && name[i] <='z') continue;
+                    if(name[i] >= 'A' && name[i] <='Z') continue;
+                    if(name[i] >= '0' && name[i] <='9') continue;
+                    if(name[i] =='\n'){ // end of str
+                        name[i]=0;
+                        break;
+                    }
+                    
+                    // too long name occur; or
+                    // invalid char occur
+                    // index :            2 2 2
+                    //                    5 5 5
+                    //        1 2 3 ..... 5 6 7
+                    // input :a b c ..... d a \n   
+                    // store :a b c ..... d a 0
+                    // too long name
+                    fflush(stdin);
+                    name[0]=0;
+                }
+            }while(!name[0]);
+            if(!i) continue; // press enter only
+            printf("Name: %s\n", name);
+            goOnline();
+        }else{
+            printf("[ Have a nice day. ]\n");
+            break;
+        }
+    }
+    // end of program
+    return 0;
 }
