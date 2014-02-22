@@ -33,93 +33,96 @@ int online(ARG *arg){
 }
 
 void offline(int id){
+	printf("Clearing %d\n", id);
 	freeArg(peers[id]);
 	peers[id] = NULL;
 }
 
 void printOnlineList(){
 	int i;
+	printf("Listing online clients: \n");
 	for(i = 0; i < 10; i++){
-		printf("Printing %d\n", i);
 		if(peers[i]!=NULL){
 			printf("ID(%d)ONLINE: IP: %x Port: %d Name: %s\n", i, peers[i]->ip,peers[i]->port, peers[i]->name);
-		}else{
-			printf("ID(%d)OFFLINE\n", i);
 		}
 	}
 }
 
 void *accepted(void *csd){
 	PEER *p = (PEER *) csd;
+	DATA *data = malloc(sizeof(DATA));
+	DATA *reply = malloc(sizeof(DATA));
 	int client_sd = p->client_sd;
 	char *buff = malloc(2656);
-	int len, id;
-    printf("[SERVER]BEFORE RECV\n");
+	int len, id, status;
 	
-	if((len=recv(client_sd,buff,2656,0))<=0){
-		if(errno == 0){
-			printf("[SERVER]Client %s disconnected!\n", getClientAddr(&p->client_addr));
+	while(1){
+		data = recv_data(client_sd,&len,&status);
+		switch(status){
+			case -1:
+			case -2:
+				close(client_sd);
+				printf("closed client conn\n");
+				offline(id);
+				printf("removed online record\n");
+				printOnlineList();
+				printf("[SERVER]Client %s disconnected!\n", getClientAddr(&p->client_addr));
+				return;
+			default:
+				break;
 		}
-		printf("[SERVER]receive error: %s (Errno:%d)\n", strerror(errno),errno);
-		return;
+
+	    switch(data->command){
+	    	case LOGIN:
+	    		printf("[SERVER] %s: LOGIN\n", getClientAddr(&p->client_addr));
+	    		printf("[SERVER] %s: Username=%s Port=%d\n", 
+	    			getClientAddr(&p->client_addr),
+	    			data->arg->name,
+	    			data->arg->port);
+	    		data->arg->ip = ntohl(p->client_addr.sin_addr.s_addr);
+	    		id = online(data->arg);
+	    		printf("[SERVER] %s: LOGGED IN, id=%d\n", getClientAddr(&p->client_addr), id);
+	    		if(id >= 0){
+	    			reply = newHeader();
+	    			reply->command = LOGIN_OK;
+	    			reply->length = 1;
+					if(!send_data(client_sd,reply,&len)) return;
+	    		}else{
+	    			reply = newHeader();
+	    			reply->command = ERROR;
+	    			switch(id){
+	    				case -1:
+	    					reply->error = TOO_MUCH_CONN;
+	    					break;
+	    				case -2:
+	    					reply->error = SAME_NAME;
+	    					break;
+	    				case -3:
+	    					reply->error = SAME_CONN;
+	    			}
+	    			reply->length = 7;
+	    			if(!send_data(client_sd,reply,&len)) return;
+	    			close(client_sd);
+	    			printOnlineList();
+					printf("[SERVER]Client %s disconnected!\n", getClientAddr(&p->client_addr));
+					return;
+	    		}
+	    		break;
+	    	case GET_LIST:
+	    		printf("[SERVER] %s: GET_LIST\nCurrent online users:\n", getClientAddr(&p->client_addr));
+	    		printOnlineList();
+	    		break;
+	    	default:
+	    		printf("[SERVER] %s: Unknown command\n", getClientAddr(&p->client_addr));
+	    		break;
+	    }
 	}
 
-	DATA *d = parseData(buff);
-	DATA *reply;
-	DATA *err;
-    switch(d->command){
-    	case LOGIN:
-    		printf("[SERVER] %s: LOGIN\n", getClientAddr(&p->client_addr));
-			d = parseData(buff);
-    		printf("[SERVER] %s: Username=%s Port=%d\n", 
-    			getClientAddr(&p->client_addr),
-    			d->arg->name,
-    			d->arg->port);
-    		d->arg->ip = ntohl(p->client_addr.sin_addr.s_addr);
-    		int id = online(d->arg);
-    		if(id >= 0){
-    			peers[id]->ip = ntohl(p->client_addr.sin_addr.s_addr);
-    			reply = newHeader();
-    			reply->command = LOGIN_OK;
-				toData(reply, buff);
-    			if((len=send(client_sd,buff,1,0))<0){
-    				printf("Reply Error: %s (Errno:%d)\n",strerror(errno),errno);
-    			}
-    		}else{
-    			err = newHeader();
-    			err->command = ERROR;
-    			switch(id){
-    				case -1:
-    					err->error = TOO_MUCH_CONN;
-    					break;
-    				case -2:
-    					err->error = SAME_NAME;
-    					break;
-    				case -3:
-    					err->error = SAME_CONN;
-    			}
-    			toData(err, buff);
-    			if((len=send(client_sd,buff,7,0))<0){
-					printf("Reply Error: %s (Errno:%d)\n",strerror(errno),errno);
-				}
-    		}
-    		break;
-    	case GET_LIST:
-    		printf("[SERVER] %s: GET_LIST\n", getClientAddr(&p->client_addr));
-    		break;
-    	default:
-    		printf("[SERVER] %s: Unknown command\n", getClientAddr(&p->client_addr));
-    		break;
-    }
+	close(client_sd);
+	offline(id);
+	printOnlineList();
+	printf("[SERVER]Client %s disconnected!\n", getClientAddr(&p->client_addr));
 
-
-	buff[len]='\0';
-	printf("[SERVER]RECEIVED INFO: ");
-	if(strlen(buff)!=0)printf("%s\n",buff);
-	if(strcmp("exit",buff)==0){
-		close(client_sd);
-		printf("[SERVER]Client %s disconnected!\n", getClientAddr(&p->client_addr));
-	}
 }
 
 int main(int argc, char **argv){
@@ -157,7 +160,9 @@ int main(int argc, char **argv){
 			exit(0);
 		}
 
-		printf("[SERVER]Connected:\nClient Address: %s Port: %d\n", getClientAddr(&client_addr), htons(client_addr.sin_port));
+		printf("[SERVER]Connected:\nClient Address: %s Port: %d\n", 
+			getClientAddr(&client_addr), 
+			htons(client_addr.sin_port));
 		PEER passing;
 		passing.client_sd = client_sd;
 		passing.sd = sd;

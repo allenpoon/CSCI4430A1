@@ -31,7 +31,7 @@ int main(int argc, char** argv){
 	server_addr.sin_port=htons(atoi(argv[2]));
 	printf("[ Opening an arbitrary listening port");
 	if(connect(sd,(struct sockaddr *)&server_addr,sizeof(server_addr))<0){
-		printf(" ... \nconnection error: %s (Errno:%d)\n",strerror(errno),errno);
+		printf(" ... Error ]\n[ connection error: %s (Errno:%d) ]\n",strerror(errno),errno);
 		exit(0);
 	}
 
@@ -41,7 +41,8 @@ int main(int argc, char** argv){
 
 	int choice;
 	char name[256];
-	int len, nameLen;
+	int len, nameLen, status;
+	unsigned short listening_port;
 	unsigned char *buff = malloc(2656);
 	
 	while(1){
@@ -78,18 +79,13 @@ int main(int argc, char** argv){
 				nameLen = strlen(name);
 				data->arg = newClient(name, 0, (unsigned short) ntohs(client_addr.sin_port), nameLen) ;
 				data->length = 1+4+4+nameLen+4+2+1;
-				toData(data, buff);
-				if((len=send(sd,buff,data->length,0))<0){
-					printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
-					continue;
-				}
-
-				if((len=recv(sd,buff,2656,0))<=0){
-					printf("[CLIENT]receive error: %s (Errno:%d)\n", strerror(errno),errno);
-				}
-
+				// Send LOGIN 
+				if(!send_data(sd,data,&len)) continue;
+				// Recv SERVER STATUS
 				freeData(data);
-				data = parseData(buff);
+				data = recv_data(sd,&len,&status);
+				if(!status) continue;
+				// Add null char to the end of name
 				*(name+nameLen-1) = '\0';
 
 				switch(data->command){
@@ -111,6 +107,7 @@ int main(int argc, char** argv){
 								printf("[ Logging in .... \"Sorry, maximum number of online clients is reached!\" ]\n", name);
 								break;
 						}
+						exit(0);
 						break;
 				}
 
@@ -123,12 +120,21 @@ int main(int argc, char** argv){
 
 				switch(choice){
 					case 1:
+						freeData(data);
+						data = newHeader();
+						data->command = GET_LIST;
+						data->length = 1;
+						if(!send_data(sd,data,&len)) continue;
+						freeData(data);
+						data = recv_data(sd,&len,&status);
+						if(!status) continue;
 						break;
 					case 2:
 						break;
 					case 3:
 						break;
 					case 4:
+						printf("[ Closing connection... ]\n");
 						close(sd);
 						exit(0);
 						break;
@@ -137,18 +143,6 @@ int main(int argc, char** argv){
 				close(0);
 				exit(0);
 				break;
-		}
-	}
-
-	while(1){
-		char buff[100];
-		memset(buff,0,100);
-		scanf("%s",buff);
-		//printf("%s\n",buff);
-		int len;
-		if((len=send(sd,buff,strlen(buff),0))<0){
-			printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
-			exit(0);
 		}
 	}
 	return 0;

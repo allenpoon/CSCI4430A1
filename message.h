@@ -37,11 +37,8 @@ typedef struct header{
 } DATA;
 
 ARG *newMsg(char *str, int strLen);
-<<<<<<< HEAD
+
 ARG *newClient(char *name, unsigned int ip, unsigned short port, int nameLen);
-=======
-ARG *newClient(char *name, unsigned int ip, unsignedshort port, int nameLen);
->>>>>>> f91cc1a6f4e97b6b612af5ebbc089ce811239c38
 
 // return 1 == success
 // return 0 == msg too long
@@ -68,12 +65,13 @@ int freeData(DATA *data);
 
 int freeArg(ARG * arg);
 
-<<<<<<< HEAD
-=======
 int getDataLen(unsigned char *data);
 
->>>>>>> f91cc1a6f4e97b6b612af5ebbc089ce811239c38
 char *getClientAddr(struct sockaddr_in * client_addr);
+
+int send_data(int sd, DATA * data, int *rtnlen);
+
+DATA *recv_data(int sd, int *rtnlen, int *status);
 
 #include "message.c"
 #endif

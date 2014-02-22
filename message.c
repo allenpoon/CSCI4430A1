@@ -65,12 +65,12 @@ short addClient(DATA *header, ARG *client){
 
 void removeArg(DATA *data, ARG *arg){
     ARG *tmp;
-    if(header){
-        if(header->arg == arg){
-            header->arg=arg->arg;
+    if(data){
+        if(data->arg == arg){
+            data->arg=arg->arg;
             freeArg(arg);
         }else{
-            tmp=header->arg;
+            tmp=data->arg;
             while(tmp->arg && tmp->arg != arg) tmp=tmp->arg;
             if(tmp->arg == arg){
                 tmp->arg=arg->arg;
@@ -214,26 +214,28 @@ DATA * newHeader(){
 }
 
 int freeData(DATA *data){
-    if(data->arg){
-        freeArg(data->arg);
+    if(!data){
+        if(data->arg){
+            freeArg(data->arg);
+        }
+        free(data);
     }
-    free(data);
     return 1;
 }
 
 int freeArg(ARG * arg){
-    if(arg->arg){
-        freeArg(arg->arg);
+    if(!arg){
+        if(arg->arg){
+            freeArg(arg->arg);
+        }
+        if(arg->name){
+            free(arg->name);
+        }
+        free(arg);
     }
-    if(arg->name){
-        free(arg->name);
-    }
-    free(arg);
     return 1;
 }
 
-<<<<<<< HEAD
-=======
 int getDataLen(unsigned char *data){
     int result = 1;
     switch(*data){
@@ -252,7 +254,6 @@ int getDataLen(unsigned char *data){
             break;
     }
 }
->>>>>>> f91cc1a6f4e97b6b612af5ebbc089ce811239c38
 
 char *getClientAddr(struct sockaddr_in * client_addr){
     static char ip[19];
@@ -263,8 +264,30 @@ char *getClientAddr(struct sockaddr_in * client_addr){
         (int)((client_addr->sin_addr.s_addr & 0xff000000)>>24));
     return (char *) &ip;
 }
-<<<<<<< HEAD
 
-#endif
-=======
->>>>>>> f91cc1a6f4e97b6b612af5ebbc089ce811239c38
+int send_data(int sd, DATA * data, int *rtnlen){
+    char * buff = malloc(2656);
+    printf("Sending command: %d\n", data->command);
+    toData(data, buff);
+    if(((*rtnlen)=send(sd,buff,data->length,0))<0){
+        printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
+        return -1;
+    }
+    return 1;
+}
+
+DATA *recv_data(int sd, int *rtnlen, int *status){
+    char * buff = malloc(2656);
+    if(((*rtnlen)=recv(sd,buff,2656,0))<=0){
+        if(errno == 0){
+            printf("client close: %s (Errno:%d)\n", strerror(errno),errno);
+            *status = -2;
+            return NULL;
+        }
+        printf("receive error: %s (Errno:%d)\n", strerror(errno),errno);
+        *status = -1;
+        return NULL;
+    }
+    *status = 1;
+    return parseData(buff);
+}
