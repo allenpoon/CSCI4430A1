@@ -209,20 +209,6 @@ void goOnline(){
             close(socket_serv );
             return;
         }
-
-/*        
-        toData(tmpData, sockBuff[0]);
-        freeData(tmpData);
-        
-        i=getDataLen(sockBuff[0]);
-// something error handling
-        i=send(socket_serv, sockBuff[0], i, 0);
-        */
-// something error handling
-//        i=recv(socket_serv, sockBuff[0], BUFF_LEN, 0);
-// something error handling
-//        if(i==getDataLen(sockBuff[0]));
-//        tmpData = parseData(sockBuff[0]);
         switch(tmpData->command){
             case LOGIN_OK:
                 printf("\"Hello, %s!\" ]\n", name);
