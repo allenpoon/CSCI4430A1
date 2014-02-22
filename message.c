@@ -231,4 +231,23 @@ int freeArg(ARG * arg){
     return 1;
 }
 
+int getDataLen(unsigned char *data){
+    int result = 1;
+    switch(*data){
+        case LOGIN:
+            result += 4 + 2;
+        case GET_LIST_OK:
+        case HELLO:
+        case MSG:
+        case ERROR:
+            result += 4 + *(int *)(data+1);
+            break;
+        case LOGIN_OK:
+        case GET_LIST:
+        case HELLO_OK:
+            // completed lol
+            break;
+    }
+}
+
 #endif

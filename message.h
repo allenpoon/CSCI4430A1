@@ -64,5 +64,7 @@ int freeData(DATA *data);
 
 int freeArg(ARG * arg);
 
+int getDataLen(unsigned char *data);
+
 #include "message.c"
 #endif
