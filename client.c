@@ -199,7 +199,7 @@ void goOnline(){
         tmpData = recv_data(socket_serv,&len,&i);
         if(!i){
             //ERROR
-            close(socket_serv);
+            close(socket_serv );
             return;
         }
 
