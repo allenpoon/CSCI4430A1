@@ -1,5 +1,3 @@
-#ifdef message_h
-
 ARG *newMsg(char *str, int strLen){
     ARG *arg = malloc(sizeof(ARG));
     arg->name=0;
@@ -8,7 +6,7 @@ ARG *newMsg(char *str, int strLen){
     return arg;
 }
 
-ARG *newClient(char *name, int ip, short port, int nameLen){
+ARG *newClient(char *name, unsigned int ip, unsigned short port, int nameLen){
     ARG *arg = malloc(sizeof(ARG));
     arg->nameLen=nameLen;
     arg->name=malloc(sizeof(char)*nameLen);
@@ -250,4 +248,12 @@ int getDataLen(unsigned char *data){
     }
 }
 
-#endif
+char *getClientAddr(struct sockaddr_in * client_addr){
+    static char ip[19];
+    sprintf(ip, "%d.%d.%d.%d",
+        (int)(client_addr->sin_addr.s_addr & 0xff), 
+        (int)((client_addr->sin_addr.s_addr & 0xff00)>>8), 
+        (int)((client_addr->sin_addr.s_addr & 0xff0000)>>16), 
+        (int)((client_addr->sin_addr.s_addr & 0xff000000)>>24));
+    return (char *) &ip;
+}
