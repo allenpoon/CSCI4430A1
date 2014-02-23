@@ -79,7 +79,7 @@ void *clientRecver(void * id){
 				tmp->arg=0;
 			}else{
 				printf("Thread [%d]: Unknow Message Receive.\n",thread_id);
-				printf("Thread [%d]: command:%d.\n",tmp->command);
+				printf("Thread [%d]: command:%d.\n", thread_id, tmp->command);
 			}
 			freeData(tmp);
 		}else{
@@ -129,7 +129,7 @@ int activeClient(int thread_id){
 			switch(connInfo[thread_id]->command){
 	            case HELLO_OK:
 	                printf("Done\n");
-					connInfo[thread_id]->arg = newArg(tmpName, tmp_addr.sin_addr.s_addr, tmp_addr.sin_port, strlen(tmpName));
+					connInfo[thread_id]->arg = newClient(tmpName, tmp_addr.sin_addr.s_addr, tmp_addr.sin_port, strlen(tmpName));
 					pthread_create(&thread[thread_id], 0, clientRecver, (void *)&thread_id);
 	                break;
 	            case ERROR:
@@ -156,7 +156,7 @@ int activeClient(int thread_id){
 void passiveClient(int client_sd, unsigned long ip, unsigned short port){
 	int i,j;
 	DATA *tmp;
-	DATA *tmpArg;
+	ARG *tmpArg;
 	pthread_mutex_lock(&conn_mutex);
     // finding available thread
     for(i=1;i<MAX_CLIENT+1 && thread[i]; i++);
@@ -168,7 +168,7 @@ void passiveClient(int client_sd, unsigned long ip, unsigned short port){
 		freeData(tmp);
 		close(client_sd);
     }else{
-    	for(j=1;j<MAX_CLIENT+1 && (!connInfo || (connInfo[j]->arg->ip ==ip && connInfo[j]->arg->port==port));j++);
+    	for(j=1;j<MAX_CLIENT+1 && (!connInfo[j] || (connInfo[j]->arg->ip ==ip && connInfo[j]->arg->port==port));j++);
     	if(j<MAX_CLIENT+1){ // same ip and port connection
 			tmp=newHeader();
 			tmp->command = ERROR;
@@ -179,7 +179,7 @@ void passiveClient(int client_sd, unsigned long ip, unsigned short port){
     	}else{
     		tmp = recv_data_buff(client_sd, 0,0,sockBuff[i]);
     		if(tmp->command == HELLO){
-    			for(j=1;j<MAX_CLIENT+1 && (!connInfo || strcmp(connInfo[j]->arg->name,tmp->arg->name)); j++);
+    			for(j=1;j<MAX_CLIENT+1 && (!connInfo[j] || strcmp(connInfo[j]->arg->name,tmp->arg->name)); j++);
     			if(j>=MAX_CLIENT+1){ // same client
 					tmp=newHeader();
 					tmp->command = ERROR;
@@ -198,7 +198,7 @@ void passiveClient(int client_sd, unsigned long ip, unsigned short port){
     				// check list - is name exist?
     				tmpArg =connInfo[0]->arg;
 					while(tmpArg && strcmp(tmpArg->name, connInfo[i]->arg->name)){
-						tmpArg = tmpAr->arg;
+						tmpArg = tmpArg->arg;
 					}
 					if(tmpArg){
 						// connected
@@ -399,13 +399,12 @@ void renewClientList(){
 }
 
 void showClientList(){
-    DATA *tmpData;
     ARG * tmpArg;
     int i;
     printf("Retrieving from server .... ");
     renewClientList();
     printf("Done.\n");
-    if(tmpData->command == GET_LIST_OK){
+    if(connInfo[0]->command == GET_LIST_OK){
         tmpArg = connInfo[0]->arg;
         i=1;
 		printf("\n");
