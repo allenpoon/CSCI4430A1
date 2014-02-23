@@ -8,6 +8,7 @@
 # include <netinet/in.h>
 # include <pthread.h>
 # include "message.h"
+# include "signal.h"
 
 #define NAME_LEN 255
 #define MAX_MSG_LEN 255
@@ -39,6 +40,7 @@ unsigned short port=0;
 // 0 == server, 1..10 == client
 // MAX 9 Conn, 1 client is accept for kick it out
 DATA *connInfo[MAX_CLIENT+1]; 
+DATA *otherMsg=0;
 
 // prevent passive and active client login in the same time
 pthread_mutex_t conn_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -46,6 +48,7 @@ pthread_mutex_t conn_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t port_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t listen_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t active_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t recv_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 // 0 == listening, 1..10 == passive+active
 pthread_t thread[MAX_CLIENT+1]; 
@@ -74,24 +77,40 @@ void *clientRecver(void * id){
     pthread_mutex_unlock(&active_mutex);
 	while(1){
 		tmp = recv_data_buff(socket_id[thread_id], 0, 0, sockBuff[thread_id]);
+
 		if(tmp){
 			if(tmp->command == MSG){
+                pthread_mutex_lock(&recv_mutex);
 				addArg(connInfo[thread_id], tmp->arg);
+                pthread_mutex_unlock(&recv_mutex);
 				tmp->arg=0;
 			}else{
-				printf("Thread [%d]: Unknow Message Receive.\n",thread_id);
-				printf("Thread [%d]: command:%d.\n", thread_id, tmp->command);
+//				printf("Thread [%d]: Unknow Message Receive.\n",thread_id);
+//				printf("Thread [%d]: command:%d.\n", thread_id, tmp->command);
 				break;
 			}
 			freeData(tmp);
 		}else{
-			printf("Thread [%d]: Disconnected.\n",thread_id);
+//			printf("Thread [%d]: Disconnected.\n",thread_id);
 			break;
 		}
 	}
-	freeData(connInfo[thread_id]);
+	if(connInfo[thread_id] && connInfo[thread_id]->arg && connInfo[thread_id]->arg->arg){
+		if(otherMsg){
+			tmp =otherMsg;
+			while(tmp->next){
+				tmp=tmp->next;
+			}
+			tmp->next=connInfo[thread_id];
+		}else{
+			otherMsg=connInfo[thread_id];
+		}
+		connInfo[thread_id] = 0;
+	}
+	
+	if(connInfo[thread_id]) freeData(connInfo[thread_id]);
 	connInfo[thread_id]=0;
-	close(socket_id[thread_id]);
+	if(socket_id[thread_id]) close(socket_id[thread_id]);
 	socket_id[thread_id]=0;
 	thread[thread_id]=0; // end of thread
 	return 0;
@@ -158,7 +177,10 @@ int activeClient(int thread_id){
 	                break;
 	        }
 	    }
+	}else{
+		printf("User Not Found.\n");
 	}
+	return 0;
 }
 
 // a passive client thread
@@ -216,7 +238,6 @@ void passiveClient(int client_sd, unsigned long ip, unsigned short port){
 						send_data_buff(client_sd, tmp, 0, sockBuff[i]);
 						if(connInfo[i]) freeData(connInfo[i]);
 						connInfo[i] = tmp;
-						printf("TMPNAME %s", tmpArg->name);
 						addArg(connInfo[i], newClient(
 							tmpArg->name,
 							ip,
@@ -384,18 +405,37 @@ void goOnline(){
 
 void readMsg(){
     int i,j,k=0;
+    DATA *tmp;
     printf("\n");
+	while(otherMsg && otherMsg->arg && otherMsg->arg->arg){
+        j=0;
+        pthread_mutex_lock(&recv_mutex);
+        while(otherMsg->arg->arg){
+            printf("+--- Message #%-2d From '%s'\n", ++j, otherMsg->arg->name);
+            printf("%s", otherMsg->arg->arg->msg);
+            printf("+--------------------------------\n\n");
+// need to set mutex
+            removeArg(otherMsg, otherMsg->arg->arg);
+            k++;
+        }
+        pthread_mutex_unlock(&recv_mutex);
+        tmp = otherMsg;
+        otherMsg = otherMsg->next;
+		freeData(tmp);
+	}
     for(i=1;i<=MAX_CLIENT;i++){
         if(connInfo[i] && connInfo[i]->arg && connInfo[i]->arg->arg){
             j=0;
+            pthread_mutex_lock(&recv_mutex);
             while(connInfo[i]->arg->arg){
                 printf("+--- Message #%-2d From '%s'\n", ++j, connInfo[i]->arg->name);
-                printf("%s\n", connInfo[i]->arg->arg->msg);
+                printf("%s", connInfo[i]->arg->arg->msg);
                 printf("+--------------------------------\n\n");
 // need to set mutex
                 removeArg(connInfo[i], connInfo[i]->arg->arg);
                 k++;
             }
+            pthread_mutex_unlock(&recv_mutex);
         }
     }
     if(k==0){
@@ -467,23 +507,28 @@ void startConn(){
             counter =0;
             printf("\n");
             printf("+---Type your message to '%s'-------------------\n", tmpName);
-
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
             do{
-                fgets(str+counter, MAX_MSG_LEN+1, stdin);
+                fgets(str+counter, MAX_MSG_LEN+2, stdin);
                 if(!strcmp(".\n", str+counter)){
                     *(str+counter) = 0;
                     break;
                 }
                 counter += strlen(str+counter);
-            }while(counter < MAX_MSG_LEN);
-            printf("+--------------------------------\n");
-            DATA *sendingMsg = newHeader();
-            sendingMsg->command = MSG;
-            addMsg(sendingMsg, newMsg(str, strlen(str)));
-            send_data_buff(socket_id[i], sendingMsg, 0, sockBuff[i]);
-            printf("[ Message (%d bytes) sent to ’%s’. ]\n", strlen(str), tmpName);
-            freeData(sendingMsg);
-            j=0;
+            }while(counter < MAX_MSG_LEN+2);
+            if(counter > MAX_MSG_LEN){
+            	printf("Maximum Message Exceed!\n");
+            	fflush(stdin);
+            }else{
+	            printf("+--------------------------------\n");
+	            DATA *sendingMsg = newHeader();
+	            sendingMsg->command = MSG;
+	            addMsg(sendingMsg, newMsg(str, strlen(str)));
+	            send_data_buff(socket_id[i], sendingMsg, 0, sockBuff[i]);
+	            printf("[ Message (%d bytes) sent to ’%s’. ]\n", strlen(str), tmpName);
+	            freeData(sendingMsg);
+	            j=0;
+            }
         }
 }
 
@@ -545,16 +590,10 @@ void loginedMenu(){
                 break;
             case 4:
                 closeAllConn();
-                printf("[ Have a nice day. ]\n");
-                exit(0);
+                printf("[ Bye. ]\n");
         }
     }while(choice != 4);
 }
-
-
-
-
-
 
 // close all thread and socket
 // 1. close all passive and active client
@@ -572,11 +611,9 @@ void closeAllConn(){
 
     printf("done ]\n[ Disconnecting from all client ... ");
     for(i=MAX_CLIENT; i>=0; i--){
-    	printf("Socket %d \n", i);
     	if(socket_id[i]){
     		shutdown(socket_id[i],2);
     		//close(socket_id[i]);
-    		printf("\tCleared\n");
 	        socket_id[i]=0; // reset socket_id
     	}
     }
@@ -590,9 +627,7 @@ void closeAllConn(){
     }
     for(i=MAX_CLIENT; i>=0; i--){
     	if(thread[i]){
-    		printf("Waiting %d to die\n", i);
 	        pthread_join(thread[i], NULL); // wait for all thread end by themselves
-	        printf("DEAD\n");
 	        thread[i]=0; // reset thread
     	}
     }
@@ -605,7 +640,7 @@ int main(int argc, char** argv){
     // Menu option saver
     int choice;
     int i;
-    
+    signal_init();
     if(argc < 3){
         printf("Usage: client.out [IP Address] [Port]\n");
         exit(0);
@@ -626,6 +661,7 @@ int main(int argc, char** argv){
     
     while(1){
         port=0; // reset all
+        otherMsg = 0;
         for(i=11;i>=0;i--){
             socket_id[i]=0;
             if(i==11) continue;
@@ -677,7 +713,6 @@ int main(int argc, char** argv){
                 }
             }while(!name[0]);
             if(!i) continue; // press enter only
-            printf("Name: %s\n", name);
             goOnline();
         }else{
             printf("[ Have a nice day. ]\n");

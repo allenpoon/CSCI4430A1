@@ -238,6 +238,7 @@ DATA * newHeader(){
     header->command=0;
     header->arg=0;
     header->length =0;
+    header->next =0;
     return header;
 }
 

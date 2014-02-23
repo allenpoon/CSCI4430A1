@@ -35,6 +35,7 @@ typedef struct header{
     unsigned char error;
     int length;
     ARG *arg;
+    struct header *next;
 } DATA;
 
 ARG *newMsg(char *str, unsigned int strLen);
