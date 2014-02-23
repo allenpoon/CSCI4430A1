@@ -175,15 +175,7 @@ void passiveClient(int client_sd, unsigned long ip, unsigned short port){
 		freeData(tmp);
 		close(client_sd);
     }else{
-<<<<<<< HEAD
-//	 	sockBuff[i]
-//    	socket_id[i]
-//    	thread[i]
-//		connInfo[i]
-    	for(j=1;i<MAX_CLIENT+1 && (!connInfo || (connInfo[j]->arg->ip ==ip && connInfo[j]->arg->port==port));j++);
-=======
     	for(j=1;j<MAX_CLIENT+1 && (!connInfo || (connInfo[j]->ip ==ip && connInfo[j]->port==port));j++);
->>>>>>> 33245e5ecb892821647936391dfa66557a62557b
     	if(j<MAX_CLIENT+1){ // same ip and port connection
 			tmp=newHeader();
 			tmp->command = ERROR;
@@ -407,17 +399,10 @@ void renewClientList(){
     send_data_buff(socket_serv, tmpData, 0, sockBuff[0]);
     freeData(tmpData);
     tmpData=recv_data_buff(socket_serv, 0, 0, sockBuff[0]);
-<<<<<<< HEAD
-// something error handling
-//    if(i==getDataLen(sockBuff[0]));
-    tmpData = parseData(sockBuff[0]);
-
-=======
 	if(connInfo[0]){
 		freeData(connInfo[0]);
 	}
 	connInfo[0]=tmpData;
->>>>>>> 33245e5ecb892821647936391dfa66557a62557b
 }
 
 void showClientList(){
