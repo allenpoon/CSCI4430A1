@@ -175,7 +175,7 @@ void passiveClient(int client_sd, unsigned long ip, unsigned short port){
 		freeData(tmp);
 		close(client_sd);
     }else{
-    	for(j=1;j<MAX_CLIENT+1 && (!connInfo || (connInfo[j]->ip ==ip && connInfo[j]->port==port));j++);
+    	for(j=1;j<MAX_CLIENT+1 && (!connInfo || (connInfo[j]->arg->ip ==ip && connInfo[j]->arg->port==port));j++);
     	if(j<MAX_CLIENT+1){ // same ip and port connection
 			tmp=newHeader();
 			tmp->command = ERROR;
@@ -220,11 +220,11 @@ void passiveClient(int client_sd, unsigned long ip, unsigned short port){
     					pthread_mutex_unlock(&listen_mutex);
 					}else{
 						// connection refuse
-						connInfo = 0;
 						tmp->command = ERROR;
 						tmp->error = NOT_IN_LIST;
 						send_data_buff(client_sd, tmp, 0, sockBuff[i]);
 						freeData(tmp);
+						connInfo[i] = 0;
 						close(client_sd);
 					}
     			}
