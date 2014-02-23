@@ -74,7 +74,7 @@ int send_data_buff(int sd, DATA * data, unsigned int *rtnlen, unsigned char *buf
 
 int send_data(int sd, DATA * data, unsigned int *rtnlen);
 
-DATA *recv_data_buff(int sd, DATA * data, unsigned int *rtnlen, unsigned char *buff);
+DATA *recv_data_buff(int sd, unsigned int *rtnlen, int *status, unsigned char *buff);
 
 DATA *recv_data(int sd, unsigned int *rtnlen, int *status);
 
