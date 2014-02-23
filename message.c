@@ -283,7 +283,7 @@ int send_data_buff(int sd, DATA * data, unsigned int *rtnlen, unsigned char *buf
 int send_data(int sd, DATA * data, unsigned int *rtnlen){
 	// don't try to use static since there are more than one thread may call
     unsigned char * buff = malloc(2656);
-    int result = send_data_buff(int sd, DATA * data, int *rtnlen, buff);
+    int result = send_data_buff(sd, data, rtnlen, buff);
     free(buff);
     return result;
 }
@@ -307,7 +307,7 @@ DATA *recv_data_buff(int sd, unsigned int *rtnlen, int *status, unsigned char *b
 DATA *recv_data(int sd, unsigned int *rtnlen, int *status){
 	// don't try to use static since there are more than one thread may call
     unsigned char * buff = malloc(2656);
-    DATA *tmp = recv_data_buff(int sd, int *rtnlen, int *status, unsigned char *buff)
+    DATA *tmp = recv_data_buff(sd, rtnlen, status, buff);
     free(buff);
     return tmp;
 }
