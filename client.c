@@ -250,6 +250,64 @@ void goOnline(){
         pthread_mutex_unlock(&port_mutex);
         sleep(0);
     }
+<<<<<<< HEAD
+    */
+    
+    // connect to server
+    socket_serv = socket(AF_INET,SOCK_STREAM,0);
+
+	for(i=0;i<5 && connect(socket_serv,(struct sockaddr *)&server_addr,sizeof(server_addr))<0 ;i++){
+		printf("connection error: %s (Errno:%d)\n",strerror(errno),errno);
+		printf("Retry Connecting to [%s:%hd] ...\n", getClientAddr(&server_addr), ntohs(server_addr.sin_port));
+	}
+	if(i==5){
+        printf("Cannot Connect to [%s:%hd].\n", getClientAddr(&server_addr), ntohs(server_addr.sin_port));
+    }else{
+        // connection completed
+        // ask for user action
+        printf("[ Logging in ... ");
+        
+        i=sizeof(local_addr);
+        getsockname(socket_serv, (struct sockaddr *) &local_addr, &i);
+        
+        tmpData = newHeader();
+        tmpData->command = LOGIN;
+        addClient(tmpData, newClient(name, 0, ntohs(local_addr.sin_port), strlen(name)));
+        if(!send_data(socket_serv,tmpData,&len)){
+            //ERROR
+            close(socket_serv);
+            return;
+        }
+
+        freeData(tmpData);
+        tmpData = recv_data(socket_serv,&len,&i);
+        if(!i){
+            //ERROR
+            close(socket_serv );
+            return;
+        }
+        switch(tmpData->command){
+            case LOGIN_OK:
+                printf("\"Hello, %s!\" ]\n", name);
+                freeData(tmpData);
+                loginedMenu();
+                break;
+            case ERROR:
+                switch(tmpData->error){
+                    case SAME_NAME:
+                        printf("\"Sorry, '%s' is already there!\"\n",name);
+                        break;
+                    case SAME_CONN:
+                        printf("\"Sorry, there is same ip and port of client.\"\n");
+                        break;
+                    case TOO_MUCH_CONN:
+                        printf("\"Sorry, there are too much client.\"\n");
+                        break;
+                }
+                freeData(tmpData);
+                break;
+        }
+=======
 	if(port < 0){
 		printf("We cannot bind a port for listening, Fail to online.\n");
 	}else{
@@ -316,6 +374,7 @@ void goOnline(){
 	        }
 	    }
     	close(socket_serv);
+>>>>>>> 60a4c1ddf165cfe9d0073ae6e860902bee58abb2
     }
 // close all socket, close all thread, free memory
 }
