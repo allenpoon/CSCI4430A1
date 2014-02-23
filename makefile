@@ -1,29 +1,32 @@
 
 all:
-	gcc -pthread server.c -o server.out
-	gcc -pthread client.c -o client.out
+	gcc -lpthread server.c -o server.out
+	gcc -lpthread client.c -o client.out
 	git add -i .
 	@echo "Please enter your commit message. (CTRL+D to end)"
 	@make git-all
 	
 server:
-	gcc -pthread server.c -o server.out
+	gcc -lpthread server.c -o server.out
 	git add -i  .
 	@echo "Please enter your commit message. (CTRL+D to end)"
 	@make git-server
 client:
-	gcc -pthread client.c -o client.out
+	gcc -lpthread client.c -o client.out
 	git add -i  .
 	@echo "Please enter your commit message. (CTRL+D to end)"
 	@make git-client
 testall:
-	gcc -pthread server.c -o server.out
-	gcc -pthread client.c -o client.out
+	gcc -lpthread server.c -o server.out
+	gcc -lpthread client.c -o client.out
+testalls:
+	gcc server.c -o spserver.out -lnsl -lsocket -lpthread -lresolv
+	gcc client.c -o spclient.out -lnsl -lsocket -lpthread -lresolv
 	
 testserver:
-	gcc -pthread server.c -o server.out
+	gcc -lpthread server.c -o server.out
 testclient:
-	gcc -pthread client.c -o client.out
+	gcc -lpthread client.c -o client.out
 clean:
 	rm -rf *.out
 	git add -i  .
