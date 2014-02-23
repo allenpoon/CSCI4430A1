@@ -125,8 +125,8 @@ int activeClient(int thread_id){
 			printf("Connecting to '%s' ... ", tmpName);
 			connInfo[thread_id]=newHeader();
 			connInfo[thread_id]->command = HELLO;
-			printf("%d\n",tmpName);
-			addClient(connInfo[thread_id], newClient(tmpName, 0, 0, strlen(tmpName)));
+			printf("%s\n",name);
+			addClient(connInfo[thread_id], newClient(name, 0, 0, strlen(name)));
 			send_data_buff(socket_id[thread_id], connInfo[thread_id], &i, sockBuff[thread_id]);
 			freeData(connInfo[thread_id]);
 			connInfo[thread_id]=recv_data_buff(socket_id[thread_id], &i, 0, sockBuff[thread_id]);
@@ -208,6 +208,7 @@ void passiveClient(int client_sd, unsigned long ip, unsigned short port){
 					while(tmpArg && strcmp(tmpArg->name, connInfo[i]->arg->name)){
 						tmpArg = tmpArg->arg;
 					}
+					printf("TEMPNAME: %s\n", tmpArg->name);
 					if(tmpArg){
 						// connected
 						tmp = newHeader();
