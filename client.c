@@ -126,7 +126,7 @@ int activeClient(int thread_id){
 			connInfo[thread_id]=newHeader();
 			connInfo[thread_id]->command = HELLO;
 			printf("%d\n",tmpName);
-			addClient(connInfo[thread_id], newClient(tmpName, 0, 0, strlen(tmpName)));
+			addClient(connInfo[thread_id], newClient(name, 0, 0, strlen(name)));
 			send_data_buff(socket_id[thread_id], connInfo[thread_id], &i, sockBuff[thread_id]);
 			freeData(connInfo[thread_id]);
 			connInfo[thread_id]=recv_data_buff(socket_id[thread_id], &i, 0, sockBuff[thread_id]);
@@ -200,6 +200,7 @@ void passiveClient(int client_sd, unsigned long ip, unsigned short port){
     				// basically accepted
     				// store Header
 					connInfo[i] = tmp;
+					printf("Name Receive: %s\n", tmp->arg->name);
 					socket_id[i]=client_sd;
 // need to store IP and port
 					renewClientList();
@@ -440,7 +441,7 @@ void showClientList(){
 }
 
 void startConn(){
-    int i,j,counter,status;
+    int i,j,counter,status=1;
     char *str = sockBuff[0];
 
 // connection here
