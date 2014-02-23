@@ -70,13 +70,13 @@ int getDataLen(unsigned char *data);
 
 char *getClientAddr(struct sockaddr_in * client_addr);
 
-int send_data_buff(int sd, DATA * data, int *rtnlen, unsigned char *buff);
+int send_data_buff(int sd, DATA * data, unsigned int *rtnlen, unsigned char *buff);
 
-int send_data(int sd, DATA * data, int *rtnlen);
+int send_data(int sd, DATA * data, unsigned int *rtnlen);
 
-int recv_data_buff(int sd, DATA * data, int *rtnlen, unsigned char *buff);
+int recv_data_buff(int sd, DATA * data, unsigned int *rtnlen, unsigned char *buff);
 
-DATA *recv_data(int sd, int *rtnlen, int *status);
+DATA *recv_data(int sd, unsigned int *rtnlen, int *status);
 
 #include "message.c"
 #endif

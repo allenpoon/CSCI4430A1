@@ -270,7 +270,7 @@ char *getClientAddr(struct sockaddr_in * client_addr){
     return (char *) &ip;
 }
 
-int send_data_buff(int sd, DATA * data, int *rtnlen, unsigned char *buff){
+int send_data_buff(int sd, DATA * data, unsigned int *rtnlen, unsigned char *buff){
     toData(data, buff);
     if((*rtnlen=send(sd,buff,getDataLen(buff),0))<0){
         printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
@@ -278,15 +278,15 @@ int send_data_buff(int sd, DATA * data, int *rtnlen, unsigned char *buff){
     }
     return 1;
 }
-int send_data(int sd, DATA * data, int *rtnlen){
+int send_data(int sd, DATA * data, unsigned int *rtnlen){
 	// don't try to use static since there are more than one thread may call
     unsigned char * buff = malloc(2656);
-    int result = send_data(int sd, DATA * data, int *rtnlen, buff);
+    int result = send_data_buff(int sd, DATA * data, int *rtnlen, buff);
     free(buff);
     return result;
 }
 
-DATA *recv_data_buff(int sd, int *rtnlen, int *status, unsigned char *buff){
+DATA *recv_data_buff(int sd, unsigned int *rtnlen, int *status, unsigned char *buff){
     if(((*rtnlen)=recv(sd,buff,2656,0))<=0){
         if(errno == 0){
             *status = -2;
@@ -299,10 +299,10 @@ DATA *recv_data_buff(int sd, int *rtnlen, int *status, unsigned char *buff){
     *status = 1;
     return parseData(buff);
 }
-DATA *recv_data(int sd, int *rtnlen, int *status){
+DATA *recv_data(int sd, unsigned int *rtnlen, int *status){
 	// don't try to use static since there are more than one thread may call
     unsigned char * buff = malloc(2656);
-    DATA *tmp = recv_data_m(int sd, int *rtnlen, int *status, unsigned char *buff)
+    DATA *tmp = recv_data_buff(int sd, int *rtnlen, int *status, unsigned char *buff)
     free(buff);
     return tmp;
 }
