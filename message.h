@@ -48,6 +48,12 @@ ARG *newClient(char *name, unsigned long ip, unsigned short port, unsigned int n
 short addMsg(DATA *header, ARG *msg);
 
 // return 1 == success
+// --
+// --
+// return -2 == null pointer exception
+short addArg(DATA *header, ARG *arg);
+
+// return 1 == success
 // return 0 == list full
 // return -1 == wrong type (arg)
 // return -2 == null pointer exception

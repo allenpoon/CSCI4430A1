@@ -38,6 +38,28 @@ short addMsg(DATA *header, ARG *msg){
     return -2;
 }
 
+
+// return 1 == success
+// return 0 == msg too long
+// return -1 == worng arg
+// return -2 == null pointer exception
+short addArg(DATA *header, ARG *arg){
+    ARG *temp;
+    if(header && arg){
+        if(header->arg){
+            temp=header->arg;
+            for(;temp->arg;){
+                temp=temp->arg;
+            }
+            temp->arg=arg;
+        }else{
+        	header->arg=arg;
+        }
+        return 1;
+    }
+    return -2;
+}
+
 // return 1 == success
 // return 0 == list full
 // return -1 == worng type (arg)
@@ -68,12 +90,14 @@ void removeArg(DATA *data, ARG *arg){
     if(data){
         if(data->arg == arg){
             data->arg=arg->arg;
+            arg->arg = 0;
             freeArg(arg);
         }else{
             tmp=data->arg;
             while(tmp->arg && tmp->arg != arg) tmp=tmp->arg;
             if(tmp->arg == arg){
                 tmp->arg=arg->arg;
+            	arg->arg = 0;
                 freeArg(arg);
             }
         }
