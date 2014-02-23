@@ -147,10 +147,10 @@ void passiveClient(int client_sd, unsigned long ip, unsigned short port){
 		freeData(tmp);
 		close(client_sd);
     }else{
-	 	sockBuff[i]
-    	socket_id[i]
-    	thread[i]
-		connInfo[i]
+//	 	sockBuff[i]
+//    	socket_id[i]
+//    	thread[i]
+//		connInfo[i]
     	for(j=1;i<MAX_CLIENT+1 && (!connInfo || (connInfo[j]->ip ==ip && connInfo[j]->port==port));j++);
     	if(j<MAX_CLIENT+1){ // same ip and port connection
 			tmp=newHeader();
@@ -162,7 +162,7 @@ void passiveClient(int client_sd, unsigned long ip, unsigned short port){
     	}else{
     		tmp = recv_data_buff(client_sd, 0,0,sockBuff[i]);
     		if(tmp->command == HELLO){
-    			for(j=1;j<MAX_CLIENT+1 && (!connInfo || strcmp(connInfo[j]->arg->name,tmp->arg->name));
+    			for(j=1;j<MAX_CLIENT+1 && (!connInfo || strcmp(connInfo[j]->arg->name,tmp->arg->name)); j++);
     			if(j>=MAX_CLIENT+1){ // same client
 					tmp=newHeader();
 					tmp->command = ERROR;
@@ -223,7 +223,7 @@ void listening(){
     
 //    start accept client
 	while(1){
-		if((client_sd = accept(sd, (struct sockaddr *) &client_addr, &addr_len) ) < 0){
+		if((client_sd = accept(socket_listen, (struct sockaddr *) &client_addr, &addr_len) ) < 0){
 			printf("Connection error. Accepting client failed. %s \nError number: %d\n", strerror(errno), errno);
 			break; // end of listening
 		}
