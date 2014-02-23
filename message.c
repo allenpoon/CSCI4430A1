@@ -11,6 +11,7 @@ ARG *newClient(char *name, unsigned long ip, unsigned short port, unsigned int n
     arg->nameLen=nameLen;
     arg->name=malloc(sizeof(char)*nameLen);
     strncpy(arg->name, name, nameLen);
+    *(arg->name+nameLen) = 0;
     arg->ip=ip;
     arg->port=port;
     return arg;
@@ -68,7 +69,7 @@ short addClient(DATA *header, ARG *client){
     int i=1;
     ARG *temp;
     if(header && client){
-        if(client->name && (header->command == GET_LIST_OK || header->command == LOGIN)){
+        if(client->name && (header->command == GET_LIST_OK || header->command == LOGIN || header->command == HELLO )){
             if(header->arg){
                 temp = header->arg;
                 for(;temp->arg;i++){
