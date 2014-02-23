@@ -120,23 +120,16 @@ int activeClient(int thread_id){
 			printf("Connecting to '%s' ... ", tmpName);
 			connInfo[thread_id]=newHeader();
 			connInfo[thread_id]->command = HELLO;
-			addClient(connInfo[thread_id], newClient(name, 0, 0, strlen(name)));
-			toData(connInfo[thread_id], sockBuff[thread_id]);
-			freeData(connInfo[thread_id]);
+			addClient(connInfo[thread_id], newClient(tmpName, 0, 0, strlen(tmpName)));
+			send_data_buff(socket_id[thread_id], connInfo[thread_id], &i, sockBuff[thread_id]);
 			
-			i=getDataLen(sockBuff[thread_id]);// something error handling
-	        i=send(socket_id[thread_id], sockBuff[thread_id], i, 0);
-	// something error handling
-	        i=recv(socket_id[thread_id], sockBuff[thread_id], BUFF_LEN, 0);
-	// something error handling
-	//        if(i==getDataLen(sockBuff[0]));
-			connInfo[thread_id] = parseData(sockBuff[0]);
+			freeData(connInfo[thread_id]);
+			connInfo[thread_id]=recv_data_buff(socket_id[thread_id], &i, 0, sockBuff[thread_id]);
+			
 			switch(connInfo[thread_id]->command){
 	            case HELLO_OK:
 	                printf("Done\n");
-	                freeData(connInfo[thread_id]);
-	                connInfo[thread_id] = newHeader();
-					connInfo[thread_id]->command = MSG;
+					connInfo[thread_id]->arg = newArg(tmpName, tmp_addr.sin_addr.s_addr, tmp_addr.sin_port, strlen(tmpName));
 					pthread_create(&thread[thread_id], 0, clientRecver, (void *)&thread_id);
 	                break;
 	            case ERROR:
@@ -549,15 +542,24 @@ void closeAllConn(){
 
     printf("done ]\n[ Disconnecting from all client ... ");
     for(i=MAX_CLIENT; i>=0; i--){
-        close(socket_id[i]);
-        
-        socket_id[i]=0; // reset socket_id
+    	if(socket_id[i]){
+    		close(socket_id[i]);
+	        socket_id[i]=0; // reset socket_id
+    	}
     }
     printf("done ]\n");
 
     for(i=MAX_CLIENT; i>=0; i--){
-        thread[i] && pthread_join(thread[i], NULL); // wait for all thread end by themselves
-        thread[i]=0; // reset thread
+    	if(connInfo[i]){
+			freeData(connInfo[i]);
+			connInfo[i]=0;
+    	}
+    }
+    for(i=MAX_CLIENT; i>=0; i--){
+    	if(thread[i]){
+	        pthread_join(thread[i], NULL); // wait for all thread end by themselves
+	        thread[i]=0; // reset thread
+    	}
     }
 
 	pthread_mutex_unlock(&conn_mutex);
@@ -588,7 +590,7 @@ int main(int argc, char** argv){
 
     
     while(1){
-        port=0; // reset port
+        port=0; // reset all
         for(i=11;i>=0;i--){
             socket_id[i]=0;
             if(i==11) continue;
