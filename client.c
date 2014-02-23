@@ -32,7 +32,6 @@ struct sockaddr_in tmp_addr;
 // listening port info
 short port_assigned = -1;
 unsigned short port=0;
-pthread_mutex_t port_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 
 // 1 server + 10 client
@@ -42,6 +41,10 @@ DATA *connInfo[MAX_CLIENT+1];
 
 // prevent passive and active client login in the same time
 pthread_mutex_t conn_mutex = PTHREAD_MUTEX_INITIALIZER;
+// waiting lock
+pthread_mutex_t port_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t listen_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t active_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 // 0 == listening, 1..10 == passive+active
 pthread_t thread[MAX_CLIENT+1]; 
@@ -49,7 +52,7 @@ pthread_t thread[MAX_CLIENT+1];
 // 0 == listen, 1..10 == client
 int socket_id[MAX_CLIENT+1];
 int socket_serv;
-int socket_listen;
+
 // 0 == server, 1..10 == client
 unsigned char sockBuff[MAX_CLIENT+1][BUFF_LEN];
 
@@ -65,7 +68,31 @@ void printName(char * name, int len){
 
 void *clientRecver(void * id){
 	int thread_id = *(int *) id;
-	
+	DATA *tmp;
+    pthread_mutex_unlock(&listen_mutex);
+    pthread_mutex_unlock(&active_mutex);
+	while(1){
+		tmp = recv_data_buff(socket_id[thread_id], 0, 0, sockBuff[thread_id]);
+		if(tmp){
+			if(tmp->command == MSG){
+				addArg(connInfo[thread_id], tmp->arg);
+				tmp->arg=0;
+			}else{
+				printf("Thread [%d]: Unknow Message Receive.\n",thread_id);
+				printf("Thread [%d]: command:%d.\n",tmp->command);
+			}
+			freeData(tmp);
+		}else{
+			printf("Thread [%d]: Disconnected.\n",thread_id);
+			break;
+		}
+	}
+	freeData(connInfo[thread_id]);
+	connInfo[thread_id]=0;
+	close(socket_id[thread_id]);
+	socket_id[thread_id]=0;
+	thread[thread_id]=0; // end of thread
+	return 0;
 }
 
 // a active client thread
@@ -136,6 +163,7 @@ int activeClient(int thread_id){
 void passiveClient(int client_sd, unsigned long ip, unsigned short port){
 	int i,j;
 	DATA *tmp;
+	DATA *tmpArg;
 	pthread_mutex_lock(&conn_mutex);
     // finding available thread
     for(i=1;i<MAX_CLIENT+1 && thread[i]; i++);
@@ -147,11 +175,15 @@ void passiveClient(int client_sd, unsigned long ip, unsigned short port){
 		freeData(tmp);
 		close(client_sd);
     }else{
+<<<<<<< HEAD
 //	 	sockBuff[i]
 //    	socket_id[i]
 //    	thread[i]
 //		connInfo[i]
     	for(j=1;i<MAX_CLIENT+1 && (!connInfo || (connInfo[j]->arg->ip ==ip && connInfo[j]->arg->port==port));j++);
+=======
+    	for(j=1;j<MAX_CLIENT+1 && (!connInfo || (connInfo[j]->ip ==ip && connInfo[j]->port==port));j++);
+>>>>>>> 33245e5ecb892821647936391dfa66557a62557b
     	if(j<MAX_CLIENT+1){ // same ip and port connection
 			tmp=newHeader();
 			tmp->command = ERROR;
@@ -174,13 +206,40 @@ void passiveClient(int client_sd, unsigned long ip, unsigned short port){
     				// basically accepted
     				// store Header
 					connInfo[i] = tmp;
-    				// check list
-    				tmp =connInfo[0];
-    				
+					socket_id[i]=client_sd;
+// need to store IP and port
+					
+					
+    				// check list - is name exist?
+    				tmpArg =connInfo[0]->arg;
+					while(tmpArg && strcmp(tmpArg->name, connInfo[i]->arg->name)){
+						tmpArg = tmpAr->arg;
+					}
+					if(tmpArg){
+						// connected
+						tmp = newHeader();
+						tmp->command=HELLO_OK;
+						send_data_buff(client_sd, tmp, 0, sockBuff[i]);
+						freeData(tmp);
+    					pthread_mutex_lock(&listen_mutex);
+    					// thread will unlock
+						pthread_create(&thread[i], NULL, (void *) &clientRecver, &client_sd);
+    					pthread_mutex_lock(&listen_mutex);
+    					pthread_mutex_unlock(&listen_mutex);
+					}else{
+						// connection refuse
+						connInfo = 0;
+						tmp->command = ERROR;
+						tmp->error = NOT_IN_LIST;
+						send_data_buff(client_sd, tmp, 0, sockBuff[i]);
+						freeData(tmp);
+						close(client_sd);
+					}
     			}
     		}else{
-    			printf("Unkown Command Recive");
+    			printf("Unkown Command Recive.\n");
     			close(client_sd);
+    			freeData(tmp);
     		}
     	}
     }
@@ -193,9 +252,8 @@ void listening(){
 	int client_sd;
 	struct sockaddr_in client_addr;
     int addr_len;
-	pthread_mutex_lock(&port_mutex);
 	
-    socket_listen = socket(AF_INET, SOCK_STREAM, 0);
+    socket_id[0] = socket(AF_INET, SOCK_STREAM, 0);
     memset(&local_addr,0,sizeof(local_addr));
     local_addr.sin_family = AF_INET;
     local_addr.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -203,14 +261,14 @@ void listening(){
 
     printf("Opening an arbitrary listening port ... ");
 
-    while(bind(socket_listen, (struct sockaddr *) &local_addr, sizeof(local_addr)) < 0 && i<5){
+    while(bind(socket_id[0], (struct sockaddr *) &local_addr, sizeof(local_addr)) < 0 && i<5){
         printf("\nSocket cannot bind to a port. %s", strerror(errno));
         printf("\nError number: %d\n", errno);
         i++<5 && printf("\nRetrying Binding ... ");
     }
 	if(i<5){
 	    int addr_size = sizeof(local_addr);
-	    getsockname(socket_listen, (struct sockaddr *) &local_addr, &addr_size);
+	    getsockname(socket_id[0], (struct sockaddr *) &local_addr, &addr_size);
 	    printf("done\n");
 	    printf("Listening Port: %d\n", ntohs ( ((struct sockaddr_in *)&local_addr)->sin_port ));
 
@@ -222,12 +280,14 @@ void listening(){
     pthread_mutex_unlock(&port_mutex);
     
 //    start accept client
-	while(1){
-		if((client_sd = accept(socket_listen, (struct sockaddr *) &client_addr, &addr_len) ) < 0){
-			printf("Connection error. Accepting client failed. %s \nError number: %d\n", strerror(errno), errno);
-			break; // end of listening
+	if(port > 0){
+		while(1){
+			if((client_sd = accept(socket_id[0], (struct sockaddr *) &client_addr, &addr_len) ) < 0){
+				printf("Connection error. Accepting client failed. %s \nError number: %d\n", strerror(errno), errno);
+				break; // end of listening
+			}
+			passiveClient(client_sd, client_addr.sin_addr.s_addr, client_addr.sin_port);
 		}
-		passiveClient(client_sd, client_addr.sin_addr.s_addr, client_addr.sin_port);
 	}
 	// clear all memory, close all stream
 }
@@ -239,17 +299,12 @@ void goOnline(){
 	int i, len;
 
     // start listen
+    pthread_mutex_lock(&port_mutex);
     pthread_create(&thread[0], NULL, (void *) &listening, NULL);
     
     // waiting for listen thread after binding port
-    while(!port){
-        // waiting if listen thread locked
-        pthread_mutex_lock(&port_mutex);
-        // release lock, prevent dead lock
-        // or give time for listen thread lock
-        pthread_mutex_unlock(&port_mutex);
-        sleep(0);
-    }
+    pthread_mutex_lock(&port_mutex);
+    pthread_mutex_unlock(&port_mutex);
 
 	if(port < 0){
 		printf("We cannot bind a port for listening, Fail to online.\n");
@@ -326,17 +381,17 @@ void readMsg(){
     int i,j,k=0;
     printf("\n");
     for(i=1;i<=MAX_CLIENT;i++){
-        if(connInfo[i] && connInfo[i]->arg){
+        if(connInfo[i] && connInfo[i]->arg && connInfo[i]->arg->arg){
             j=0;
-            while(connInfo[i]->arg){
+            while(connInfo[i]->arg->arg){
                 printf("+--- Message #%-2dFrom '%s'\n", ++j, connInfo[i]->arg->name);
-                printf("%s", connInfo[i]->arg->msg);
-                printf("+--------------------------------\n\n", connInfo[i]->arg->name);
+                printf("%s\n", connInfo[i]->arg->arg->msg);
+                printf("+--------------------------------\n\n");
 // need to set mutex
-                removeArg(connInfo[i], connInfo[i]->arg);
+                removeArg(connInfo[i], connInfo[i]->arg->arg);
                 k++;
             }
-            printf("+--------------------------------\n\n", connInfo[i]->arg->name);
+            printf("+--------------------------------\n\n");
         }
     }
     if(k==0){
@@ -352,10 +407,17 @@ void renewClientList(){
     send_data_buff(socket_serv, tmpData, 0, sockBuff[0]);
     freeData(tmpData);
     tmpData=recv_data_buff(socket_serv, 0, 0, sockBuff[0]);
+<<<<<<< HEAD
 // something error handling
 //    if(i==getDataLen(sockBuff[0]));
     tmpData = parseData(sockBuff[0]);
 
+=======
+	if(connInfo[0]){
+		freeData(connInfo[0]);
+	}
+	connInfo[0]=tmpData;
+>>>>>>> 33245e5ecb892821647936391dfa66557a62557b
 }
 
 void showClientList(){
@@ -363,14 +425,10 @@ void showClientList(){
     ARG * tmpArg;
     int i;
     printf("Retrieving from server .... ");
-    
-    printf("Done.");
+    renewClientList();
+    printf("Done.\n");
     if(tmpData->command == GET_LIST_OK){
-        if(connInfo[0]){
-            freeData(connInfo[0]);
-        }
-        connInfo[0]=tmpData;
-        tmpArg = tmpData->arg;
+        tmpArg = connInfo[0]->arg;
         i=1;
 		printf("\n");
 		printf("+--- Online List ----------------\n");
@@ -454,7 +512,7 @@ void loginedMenu(){
             printf("| 1) List of online users |\n");
             printf("| 2) Read unread message  |\n");
             printf("| 3) Chat with ...        |\n");
-            printf("| 4) Quit                 |\n");
+            printf("| 4) Go Offline           |\n");
             printf("+-------------------------+\n");
             printf("Your choice >> ");
             if(scanf("%i", &choice)){
@@ -500,11 +558,11 @@ void loginedMenu(){
 void closeAllConn(){
     static int i;
 
+	pthread_mutex_lock(&conn_mutex);
     printf("[ Logging off ... ");
     close(socket_serv);
 
     printf("done ]\n[ Disconnecting from all client ... ");
-    close(socket_listen);
     for(i=MAX_CLIENT; i>=0; i--){
         close(socket_id[i]);
         
@@ -516,6 +574,8 @@ void closeAllConn(){
         thread[i] && pthread_join(thread[i], NULL); // wait for all thread end by themselves
         thread[i]=0; // reset thread
     }
+
+	pthread_mutex_unlock(&conn_mutex);
 }
 
 
@@ -544,7 +604,7 @@ int main(int argc, char** argv){
     
     while(1){
         port=0; // reset port
-        for(i=0;i<12;i++){
+        for(i=11;i>=0;i--){
             socket_id[i]=0;
             if(i==11) continue;
             sockBuff[i][0] = 0;
