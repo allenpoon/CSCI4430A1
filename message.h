@@ -22,7 +22,7 @@
 #define NOT_IN_LIST   0x04
 
 typedef struct arg{
-    int nameLen;
+    unsigned int nameLen;
     unsigned int ip;
     char *name;    // name != null --> server client list
     unsigned short port;    // port 0 for client-to-client connection
@@ -37,9 +37,9 @@ typedef struct header{
     ARG *arg;
 } DATA;
 
-ARG *newMsg(char *str, int strLen);
+ARG *newMsg(char *str, unsigned int strLen);
 
-ARG *newClient(char *name, unsigned int ip, unsigned short port, int nameLen);
+ARG *newClient(char *name, unsigned int ip, unsigned short port, unsigned int nameLen);
 
 // return 1 == success
 // return 0 == msg too long
@@ -70,7 +70,11 @@ int getDataLen(unsigned char *data);
 
 char *getClientAddr(struct sockaddr_in * client_addr);
 
+int send_data_buff(int sd, DATA * data, int *rtnlen, unsigned char *buff);
+
 int send_data(int sd, DATA * data, int *rtnlen);
+
+int recv_data_buff(int sd, DATA * data, int *rtnlen, unsigned char *buff);
 
 DATA *recv_data(int sd, int *rtnlen, int *status);
 
