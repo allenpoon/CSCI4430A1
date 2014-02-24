@@ -24,9 +24,9 @@
 typedef struct arg{
     unsigned int nameLen;
     unsigned long ip;
-    char *name;    // name != null --> server client list
+    unsigned char *name;    // name != null --> server client list
     unsigned short port;    // port 0 for client-to-client connection
-    char msg[256]; // name == null --> message
+    unsigned char msg[256]; // name == null --> message
     struct arg *arg;
 } ARG;
 
@@ -38,9 +38,9 @@ typedef struct header{
     struct header *next;
 } DATA;
 
-ARG *newMsg(char *str, unsigned int strLen);
+ARG *newMsg(unsigned char *str, unsigned int strLen);
 
-ARG *newClient(char *name, unsigned long ip, unsigned short port, unsigned int nameLen);
+ARG *newClient(unsigned char *name, unsigned long ip, unsigned short port, unsigned int nameLen);
 
 // return 1 == success
 // return 0 == msg too long

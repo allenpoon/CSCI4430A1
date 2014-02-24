@@ -5,6 +5,7 @@
 # include <errno.h>
 # include <sys/socket.h>
 # include <sys/types.h>
+#include <arpa/inet.h>
 # include <netinet/in.h>
 # include <pthread.h>
 # include "message.h"
@@ -123,7 +124,7 @@ int activeClient(int thread_id){
 
 	// finding requested client
 
-	while(tmp && strcmp(tmp->name, tmpName)){
+	while(tmp && strcmp((char *)tmp->name, (char *)tmpName)){
 		tmp = tmp->arg;
 	}
 	if(tmp){
@@ -135,25 +136,24 @@ int activeClient(int thread_id){
 
 		for(i=0;i<5 && connect(socket_id[thread_id],(struct sockaddr *)&tmp_addr,sizeof(tmp_addr))<0 ;i++){
 			printf("connection error: %s (Errno:%d)\n",strerror(errno),errno);
-			printf("Retry Connecting to [%s:%hd] ...\n", (char *) inet_ntoa(tmp_addr), tmp_addr.sin_port);
+			printf("Retry Connecting to [%s:%hd] ...\n", (char *) inet_ntoa(tmp_addr.sin_addr), tmp_addr.sin_port);
 		}
 
 		if(i==5){
-	        printf("Cannot Connect to [%s:%hd].\n", (char *) inet_ntoa(tmp_addr), tmp_addr.sin_port);
+	        printf("Cannot Connect to [%s:%hd].\n", (char *) inet_ntoa(tmp_addr.sin_addr), tmp_addr.sin_port);
 	    }else{
 			printf("Connecting to '%s' ... ", tmpName);
 			connInfo[thread_id]=newHeader();
 			connInfo[thread_id]->command = HELLO;
-			printf("%d\n",tmpName);
-			addClient(connInfo[thread_id], newClient(name, 0, 0, strlen(name)));
-			send_data_buff(socket_id[thread_id], connInfo[thread_id], &i, sockBuff[thread_id]);
+			addClient(connInfo[thread_id], newClient((unsigned char*)name, 0, 0, strlen(name)));
+			send_data_buff(socket_id[thread_id], connInfo[thread_id], (unsigned int *)&i, sockBuff[thread_id]);
 			freeData(connInfo[thread_id]);
-			connInfo[thread_id]=recv_data_buff(socket_id[thread_id], &i, 0, sockBuff[thread_id]);
+			connInfo[thread_id]=recv_data_buff(socket_id[thread_id], (unsigned int *)&i, 0, sockBuff[thread_id]);
 			
 			switch(connInfo[thread_id]->command){
 	            case HELLO_OK:
 	                printf("Done\n");
-					connInfo[thread_id]->arg = newClient(tmpName, tmp_addr.sin_addr.s_addr, tmp_addr.sin_port, strlen(tmpName));
+					connInfo[thread_id]->arg = newClient((unsigned char *)tmpName, tmp_addr.sin_addr.s_addr, tmp_addr.sin_port, strlen(tmpName));
 					pthread_mutex_lock(&active_mutex);
 					pthread_create(&thread[thread_id], 0, clientRecver, (void *)&thread_id);
 					pthread_mutex_lock(&active_mutex);
@@ -210,7 +210,7 @@ void passiveClient(int client_sd, unsigned long ip, unsigned short port){
     	}else{
     		tmp = recv_data_buff(client_sd, 0,0,sockBuff[i]);
     		if(tmp && tmp->command == HELLO){
-    			for(j=1;j<MAX_CLIENT+1 && (!connInfo[j] || strcmp(connInfo[j]->arg->name,tmp->arg->name)); j++);
+    			for(j=1;j<MAX_CLIENT+1 && (!connInfo[j] || strcmp((char *)connInfo[j]->arg->name,(char *)tmp->arg->name)); j++);
     			if(j<MAX_CLIENT+1){ // same client
 					tmp=newHeader();
 					tmp->command = ERROR;
@@ -228,7 +228,7 @@ void passiveClient(int client_sd, unsigned long ip, unsigned short port){
 					renewClientList();
     				// check list - is name exist?
     				tmpArg =connInfo[0]->arg;
-					while(tmpArg && strcmp(tmpArg->name, connInfo[i]->arg->name)){
+					while(tmpArg && strcmp((char *)tmpArg->name, (char *)connInfo[i]->arg->name)){
 						tmpArg = tmpArg->arg;
 					}
 					if(tmpArg){
@@ -242,7 +242,7 @@ void passiveClient(int client_sd, unsigned long ip, unsigned short port){
 							tmpArg->name,
 							ip,
 							port,
-							strlen(tmpArg->name)+1));
+							strlen((char *)tmpArg->name)+1));
     					pthread_mutex_lock(&listen_mutex);
     					// thread will unlock
 						pthread_create(&thread[i], NULL, (void *) &clientRecver, &i);
@@ -273,7 +273,7 @@ void *listening(){
 	int i=0;
 	int client_sd;
 	struct sockaddr_in client_addr;
-    int addr_len;
+    unsigned int addr_len;
 	
     socket_id[0] = socket(AF_INET, SOCK_STREAM, 0);
     memset(&local_addr,0,sizeof(local_addr));
@@ -286,13 +286,13 @@ void *listening(){
     while(bind(socket_id[0], (struct sockaddr *) &local_addr, sizeof(local_addr)) < 0 && i<5){
         printf("\nSocket cannot bind to a port. %s", strerror(errno));
         printf("\nError number: %d\n", errno);
-        i++<5 && printf("\nRetrying Binding ... ");
+        if(i++<5) printf("\nRetrying Binding ... ");
     }
 	if(i<5){
 		if(listen(socket_id[0],MAX_CLIENT) < 0){
 			printf("Cannot listen to a port. %s \nError number: %d\n", strerror(errno), errno);
 		}
-	    int addr_size = sizeof(local_addr);
+	    unsigned int addr_size = sizeof(local_addr);
 	    getsockname(socket_id[0], (struct sockaddr *) &local_addr, &addr_size);
 	    printf("done\n");
 	    printf("Listening Port: %d\n", ntohs ( ((struct sockaddr_in *)&local_addr)->sin_port ));
@@ -300,7 +300,7 @@ void *listening(){
 	    port = ntohs ( ((struct sockaddr_in *)&local_addr)->sin_port );
 
 	}else{
-		port = -1;
+		port = 0;
 	}
     pthread_mutex_unlock(&port_mutex);
     
@@ -316,6 +316,7 @@ void *listening(){
 	}
 
 	// clear all memory, close all stream
+	return 0;
 }
 
 
@@ -332,7 +333,7 @@ void goOnline(){
     pthread_mutex_lock(&port_mutex);
     pthread_mutex_unlock(&port_mutex);
 
-	if(port < 0){
+	if(!port){
 		printf("We cannot bind a port for listening, Fail to online.\n");
 	}else{
 	    // connect to server
@@ -352,10 +353,12 @@ void goOnline(){
 	        tmpData = newHeader();
 	        
 	        				putchar('.'); 		// --for
+							fflush(stdout);  	// --fun
 	        tmpData->command = LOGIN;
-	        addClient(tmpData, newClient(name, 0, port, strlen(name)));
-	        				putchar('.'); 		// -- fun
-	        if(!send_data(socket_serv,tmpData,&len)){
+	        addClient(tmpData, newClient((unsigned char *)name, 0, htonl(port), strlen(name)));
+	        				putchar('.'); 		// --Just
+							fflush(stdout);  	// --for
+	        if(!send_data_buff(socket_serv,tmpData,(unsigned int*)&len, sockBuff[0])){
 	        	freeData(tmpData);
 	            //ERROR
 	            printf("Oops, We cannot send data to server.\n");
@@ -363,11 +366,13 @@ void goOnline(){
 	            close(socket_serv);
 	            return;
 	        }
-	        				putchar('.'); 		// --Just
+	        				putchar('.'); 		// --for
+							fflush(stdout);  	// --fun
 
 	        freeData(tmpData);
-	        tmpData = recv_data(socket_serv,&len,&i);
-	        				putchar('.'); 		// --for
+	        tmpData = recv_data(socket_serv,(unsigned int *)&len,&i);
+	        				putchar('.'); 		// --Just
+							fflush(stdout);  	// --for
 	        if(!i){
 	        	freeData(tmpData);
 	            //ERROR
@@ -375,9 +380,10 @@ void goOnline(){
 	            return;
 	        }
 	        				putchar('.'); 		// --fun
+							fflush(stdout);  	// --Just
 	        switch(tmpData->command){
 	            case LOGIN_OK:
-	                printf("\"Hello, %s!\" ]\n", name); // End of Just for fun
+	                printf("\"Hello, %s!\" ]\n", name); // --for fun; End of Just for fun
 	                freeData(tmpData);
 	                loginedMenu();
 	                break;
@@ -470,7 +476,7 @@ void showClientList(){
 		printf("+--- Online List ----------------\n");
 		do{
 		    printf("| %2d) ", i++);
-            printName(tmpArg->name, tmpArg->nameLen);
+            printName((char*)tmpArg->name, tmpArg->nameLen);
             printf("\n");
 		    tmpArg=tmpArg->arg;
         }while(tmpArg);
@@ -481,12 +487,12 @@ void showClientList(){
 }
 
 void startConn(){
-    int i,j,counter,status=1;
-    char *str = sockBuff[0];
+    int i,counter,status=1;
+    unsigned char *str = sockBuff[0];
 
 // connection here
     
-    for(i=1;i<MAX_CLIENT + 1 && !(connInfo[i] && !strcmp(connInfo[i]->arg->name, tmpName));i++);
+    for(i=1;i<MAX_CLIENT + 1 && !(connInfo[i] && !strcmp((char *)connInfo[i]->arg->name, (char *)tmpName));i++);
 
     if(i>MAX_CLIENT){
         pthread_mutex_lock(&conn_mutex);
@@ -509,12 +515,12 @@ void startConn(){
             printf("+---Type your message to '%s'-------------------\n", tmpName);
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
             do{
-                fgets(str+counter, MAX_MSG_LEN+2, stdin);
-                if(!strcmp(".\n", str+counter)){
+                fgets((char *)str+counter, MAX_MSG_LEN+2, stdin);
+                if(!strcmp(".\n", (char *)str+counter)){
                     *(str+counter) = 0;
                     break;
                 }
-                counter += strlen(str+counter);
+                counter += strlen((char *)str+counter);
             }while(counter < MAX_MSG_LEN+2);
             if(counter > MAX_MSG_LEN){
             	printf("Maximum Message Exceed!\n");
@@ -523,11 +529,10 @@ void startConn(){
 	            printf("+--------------------------------\n");
 	            DATA *sendingMsg = newHeader();
 	            sendingMsg->command = MSG;
-	            addMsg(sendingMsg, newMsg(str, strlen(str)));
+	            addMsg(sendingMsg, newMsg(str, strlen((char *)str)));
 	            send_data_buff(socket_id[i], sendingMsg, 0, sockBuff[i]);
-	            printf("[ Message (%d bytes) sent to ’%s’. ]\n", strlen(str), tmpName);
+	            printf("[ Message (%d bytes) sent to '%s' ]\n", (int)strlen((char *)str), tmpName);
 	            freeData(sendingMsg);
-	            j=0;
             }
         }
 }
@@ -535,24 +540,25 @@ void startConn(){
 void chat(){
     int i;
     
-    do{
-        printf("Chat with ? [Enter to return to menu] >> ");
-        getchar();
-        fgets(tmpName, NAME_LEN+2, stdin);
-        // check valid input
-        for(i=0;i<NAME_LEN+1;i++){
-            if(tmpName[i] >= 'a' && tmpName[i] <='z') continue;
-            if(tmpName[i] >= 'A' && tmpName[i] <='Z') continue;
-            if(tmpName[i] >= '0' && tmpName[i] <='9') continue;
-            if(tmpName[i] =='\n'){ // end of str
-                tmpName[i]=0;
-                break;
-            }
-            fflush(stdin);
-            tmpName[0]=0;
+    printf("Chat with ? [Enter to return to menu] >> ");
+    getchar();
+    fgets(tmpName, NAME_LEN+2, stdin);
+    // check valid input
+    for(i=0;i<NAME_LEN+1;i++){
+        if(tmpName[i] >= 'a' && tmpName[i] <='z') continue;
+        if(tmpName[i] >= 'A' && tmpName[i] <='Z') continue;
+        if(tmpName[i] >= '0' && tmpName[i] <='9') continue;
+        if(tmpName[i] =='\n'){ // end of str
+            tmpName[i]=0;
+            break;
         }
-    }while(!tmpName[0]);
-    if(i){
+        fflush(stdin);
+        tmpName[0]=0;
+    }
+
+	if(!strcmp(tmpName, (char *)name)){ // dont be the poison boy
+		printf("Don't try to talk with yourself!!!\n");
+	}else if(i){
         startConn();
     }
 }

@@ -17,11 +17,11 @@ client:
 	@echo "Please enter your commit message. (CTRL+D to end)"
 	@make git-client
 testall:
-	gcc -lpthread server.c -o server.out
-	gcc -lpthread client.c -o client.out
+	gcc -lpthread server.c -o server.out -Wall
+	gcc -lpthread client.c -o client.out -Wall
 testalls:
-	gcc server.c -o spserver.out -lnsl -lsocket -lpthread -lresolv
-	gcc client.c -o spclient.out -lnsl -lsocket -lpthread -lresolv
+	gcc server.c -o spserver.out -lnsl -lsocket -lpthread -lresolv -Wall
+	gcc client.c -o spclient.out -lnsl -lsocket -lpthread -lresolv -Wall
 	
 testserver:
 	gcc -lpthread server.c -o server.out
