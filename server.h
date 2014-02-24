@@ -14,3 +14,4 @@ typedef struct _peer{
 	unsigned short port;
 	struct sockaddr_in client_addr;
 }PEER;
+

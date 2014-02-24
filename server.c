@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <arpa/inet.h>
 #include <netinet/in.h>
 #include "signal.h"
 #include "message.h"
@@ -19,7 +20,7 @@ int online(ARG *arg, int id){
 	for(i=0; i<10; i++){
 		if(peers[i]==NULL) continue;
 		if(peers[i]->nameLen == arg->nameLen){
-			if(strncmp(peers[i]->name, arg->name, arg->nameLen)==0)
+			if(strncmp((char *)peers[i]->name, (char *)arg->name, arg->nameLen)==0)
 				return -2;
 		}
 		if(peers[i]->ip == arg->ip && peers[i]->port == arg->port)
@@ -34,7 +35,7 @@ int online(ARG *arg, int id){
 }
 
 void offline(int id){
-	freeArg(peers[id]);
+	if(peers[id]) freeArg(peers[id]);
 	peers[id] = NULL;
 }
 
@@ -83,12 +84,11 @@ void *accepted(void *csd){
 	DATA *data = malloc(sizeof(DATA));
 	DATA *reply = malloc(sizeof(DATA));
 	int client_sd = p->client_sd;
-	char *buff = malloc(2656);
 	int len, status;
 	int id = p->id;
 	
 	while(1){
-		data = recv_data(client_sd,&len,&status);
+		data = recv_data(client_sd,(unsigned int *)&len,&status);
 		switch(status){
 			case -1:
 			case -2:
@@ -97,7 +97,7 @@ void *accepted(void *csd){
 				printf("[Disconnected] Client %s:%d\n", 
 					getClientAddr(&p->client_addr),
 					ntohs(p->client_addr.sin_port));
-				return;
+				return 0;
 			default:
 				break;
 		}
@@ -107,7 +107,7 @@ void *accepted(void *csd){
 	    		printf("Client %s:%d: [LOGIN] Username=", 
 	    			getClientAddr(&p->client_addr),
 	    			ntohs(p->client_addr.sin_port));
-	    		printName(data->arg->name, data->arg->nameLen);
+	    		printName((char *)data->arg->name, data->arg->nameLen);
 	    		printf("\n");
 	    		data->arg->ip = ntohl(p->client_addr.sin_addr.s_addr);
 	    		status = online(data->arg, id);
@@ -115,7 +115,7 @@ void *accepted(void *csd){
 	    			reply = newHeader();
 	    			reply->command = LOGIN_OK;
 	    			reply->length = 1;
-					if(!send_data(client_sd,reply,&len)) return;
+					if(!send_data(client_sd,reply,(unsigned int*)&len)) return 0;
 	    		}else{
 	    			printf("[ERROR] Client %s:%d ", 
 						getClientAddr(&p->client_addr),
@@ -137,12 +137,12 @@ void *accepted(void *csd){
 	    			}
 	    			printf("\n");
 	    			reply->length = 7;
-	    			if(!send_data(client_sd,reply,&len)) return;
+	    			if(!send_data(client_sd,reply,(unsigned int*)&len)) return 0;
 	    			close(client_sd);
 					printf("[Disconnected] Client %s:%d\n", 
 						getClientAddr(&p->client_addr),
 						ntohs(p->client_addr.sin_port));
-					return;
+					return 0;
 	    		}
 	    		break;
 	    	case GET_LIST:
@@ -153,7 +153,7 @@ void *accepted(void *csd){
 	    		reply->command = GET_LIST_OK;
 	    		getOnlineList(reply);
 	    		reply->length += 7;
-				if(!send_data(client_sd,reply,&len)) return;
+				if(!send_data(client_sd,reply,(unsigned int*)&len)) return 0;
 	    		break;
 	    	default:
 	    		printf("Client %s:%d: Unknown command\n", 
@@ -163,7 +163,7 @@ void *accepted(void *csd){
 	    }
 	}
 
-	close(client_sd);
+	if(client_sd) close(client_sd);
 	offline(id);
 	printOnlineList();
 	printf("[Disconnected] Client %s:%d\n", 
@@ -202,7 +202,7 @@ int main(int argc, char **argv){
 
 	addr_len = sizeof(client_addr);
 	while(1){
-		if((client_sd = (accept(sd, (struct sockaddr *) &client_addr, &addr_len))) < 0){
+		if((client_sd = (accept(sd, (struct sockaddr *) &client_addr, (unsigned int*)&addr_len))) < 0){
 			printf("Connection error. Accepting client failed. %s \nError number: %d\n", strerror(errno), errno);
 			exit(0);
 		}
@@ -231,7 +231,7 @@ int main(int argc, char **argv){
 			reply->error = TOO_MUCH_CONN;
 			printf("\n");
 			reply->length = 7;
-			send_data(client_sd,reply,&len);
+			send_data(client_sd,reply,(unsigned int*)&len);
 			close(client_sd);
 			printf("[Disconnected] Client %s:%d\n", 
 				getClientAddr(&client_addr),
