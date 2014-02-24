@@ -113,27 +113,31 @@ void toData(DATA *data, unsigned char *result){
     int i=0;
     ARG *arg=0;
     *result=0;
-            	printf("a\n");
     if(data){
-            	printf("a\n");
         switch(data->command){
             case LOGIN:
-            	printf("a\n");
                 *                     result                            =LOGIN;
-            	printf("a\n");
+            	//printf("a\n");
                 *((   result+1                          )) = (unsigned char)(data->arg->nameLen) & 0xff;
                 *((   result+1+1                        )) = (unsigned char)(data->arg->nameLen) >> 8 & 0xff;
                 *((   result+1+2                        )) = (unsigned char)(data->arg->nameLen) >> 16 & 0xff;
                 *((   result+1+3                        )) = (unsigned char)(data->arg->nameLen) >> 24 & 0xff;
-            	printf("a\n");
+            	//printf("a\n");
                 strncpy(   (char *)   result+1+4                        , (char *)data->arg->name, data->arg->nameLen);
-            	printf("a\n");
-                *((unsigned int *)(   result+1+4+data->arg->nameLen                          )) = htonl(2);
-            	printf("a\n");
-                *((unsigned short *)( result+1+4+data->arg->nameLen+4                          )) = (data->arg->port) ;
-            	printf("a\n");
+            	//printf("a\n");
+                //*((unsigned int *)(   result+1+4+data->arg->nameLen                          )) = htonl(2);
+                *((   result+1+4+data->arg->nameLen                           )) = (unsigned char)(2) & 0xff;
+                *((   result+1+4+data->arg->nameLen +1                        )) = (unsigned char)(2) >> 8 & 0xff;
+                *((   result+1+4+data->arg->nameLen +2                        )) = (unsigned char)(2) >> 16 & 0xff;
+                *((   result+1+4+data->arg->nameLen +3                        )) = (unsigned char)(2) >> 24 & 0xff;
+
+            	//printf("a\n");
+                //*((unsigned short *)( result+1+4+data->arg->nameLen+4                          )) = (data->arg->port) ;
+                *((   result+1+4+data->arg->nameLen+4                           )) = (unsigned char)(data->arg->port) & 0xff;
+                *((   result+1+4+data->arg->nameLen+4 +1                        )) = (unsigned char)(data->arg->port) >> 8 & 0xff;
+            	//printf("a\n");
                 *(                    result+1+4+data->arg->nameLen+4+2 ) = 0;
-            	printf("a\n");
+            	//printf("a\n");
                 break;
             case LOGIN_OK:
             case GET_LIST:
@@ -153,10 +157,20 @@ void toData(DATA *data, unsigned char *result){
                 for(i=0;i<10 && arg;i++){
                     *counter += 4 + arg->nameLen+4+2; // update arg size
                     
-                    *(unsigned int *)(   result                  )= (arg->nameLen);
+                    //*(unsigned int *)(   result                  )= (arg->nameLen);
+                    *((   result                            )) = (unsigned char)(arg->nameLen) & 0xff;
+                	*((   result  +1                        )) = (unsigned char)(arg->nameLen) >> 8 & 0xff;
+                	*((   result  +2                        )) = (unsigned char)(arg->nameLen) >> 16 & 0xff;
+                	*((   result  +3                        )) = (unsigned char)(arg->nameLen) >> 24 & 0xff;
                     strncpy(  (char *)   result+4                , (char *)arg->name, arg->nameLen);
-                    *(unsigned long *)(  result+4+arg->nameLen   ) = (arg->ip);
+                    //*(unsigned long *)(  result+4+arg->nameLen   ) = (arg->ip);
+                    *((   result+4+arg->nameLen                           )) = (unsigned char)(arg->nameLen) & 0xff;
+                	*((   result+4+arg->nameLen +1                        )) = (unsigned char)(arg->nameLen) >> 8 & 0xff;
+                	*((   result+4+arg->nameLen +2                        )) = (unsigned char)(arg->nameLen) >> 16 & 0xff;
+                	*((   result+4+arg->nameLen +3                        )) = (unsigned char)(arg->nameLen) >> 24 & 0xff;
                     *(unsigned short *)( result+4+arg->nameLen+4 ) = (arg->port);
+                    *((   result+4+arg->nameLen+4                           )) = (unsigned char)(arg->port) & 0xff;
+                	*((   result+4+arg->nameLen+4 +1                        )) = (unsigned char)(arg->port) >> 8 & 0xff;
                     
                     *(result = result+4+arg->nameLen+4+2) = 0; // shift (4+arg->nameLen+4+2) byte and set null to end
                     
@@ -165,19 +179,31 @@ void toData(DATA *data, unsigned char *result){
                 break;
             case HELLO:
                 *                   result                        =HELLO;
-                *((unsigned int *)( result+1                      )) = (data->arg->nameLen);
+                //*((unsigned int *)( result+1                      )) = (data->arg->nameLen);
+                *((   result+1                           )) = (unsigned char)(data->arg->nameLen) & 0xff;
+            	*((   result+1 +1                        )) = (unsigned char)(data->arg->nameLen) >> 8 & 0xff;
+            	*((   result+1 +2                        )) = (unsigned char)(data->arg->nameLen) >> 16 & 0xff;
+            	*((   result+1 +3                        )) = (unsigned char)(data->arg->nameLen) >> 24 & 0xff;
                 strncpy( (char *)   result+1+4                    , (char *)data->arg->name, data->arg->nameLen);
                 *(                  result+1+4+data->arg->nameLen ) = 0;
                 break;
             case MSG:
                 *                   result         =MSG;
-                *((unsigned int *)( result+1       )) = (strlen((char *)data->arg->msg));
+                //*((unsigned int *)( result+1       )) = (strlen((char *)data->arg->msg));
+                *((   result+1                           )) = (unsigned char)(strlen((char *)data->arg->msg)) & 0xff;
+            	*((   result+1 +1                        )) = (unsigned char)(strlen((char *)data->arg->msg)) >> 8 & 0xff;
+            	*((   result+1 +2                        )) = (unsigned char)(strlen((char *)data->arg->msg)) >> 16 & 0xff;
+            	*((   result+1 +3                        )) = (unsigned char)(strlen((char *)data->arg->msg)) >> 24 & 0xff;
                 strncpy(  (char *)   result+1+4     , (char *)data->arg->msg,255);
                 *(                  result+1+4+256 ) = 0;
                 break;
             case ERROR:
                 *                   result       =ERROR;
-                *((unsigned int *)( result+1     ))=1;
+                //*((unsigned int *)( result+1     ))=1;
+                *((   result+1                           )) = (unsigned char)(1) & 0xff;
+            	*((   result+1 +1                        )) = (unsigned char)(1) >> 8 & 0xff;
+            	*((   result+1 +2                        )) = (unsigned char)(1) >> 16 & 0xff;
+            	*((   result+1 +3                        )) = (unsigned char)(1) >> 24 & 0xff;
                 *(                  result+1+4   )=data->error;
                 *(                  result+1+4+1 )=0;
                 break;
@@ -306,13 +332,15 @@ int send_data_buff(int sd, DATA * data, unsigned int *rtnlen, unsigned char *buf
 	static unsigned int i;
 	printf("hi\n");
     toData(data, buff);
-	printf("hi\n");
+	printf("hi sending thru %d\n", sd);
     if(!rtnlen) rtnlen=malloc(sizeof(unsigned int));
 	printf("hi\n");
-    if((*rtnlen=send(sd,buff,getDataLen(buff),0))<0){
+    printf("SD: %d, BuffLen: %d\n", sd, getDataLen(buff));
+    if(((*rtnlen)=send(sd,buff,getDataLen(buff),0))<0){
         printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
         return 0;
     }
+    printf("SENDING\n");
     return 1;
 }
 int send_data(int sd, DATA * data, unsigned int *rtnlen){

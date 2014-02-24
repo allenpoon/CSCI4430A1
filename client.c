@@ -339,6 +339,8 @@ void goOnline(){
 	    // connect to server
 	    socket_serv = socket(AF_INET,SOCK_STREAM,0);
 
+	    printf("To server %d\n", socket_serv);
+
 		for(i=0;i<5 && connect(socket_serv,(struct sockaddr *)&server_addr,sizeof(server_addr))<0 ;i++){
 			printf("connection error: %s (Errno:%d)\n",strerror(errno),errno);
 			printf("Retry Connecting to [%s:%hd] ...\n", getClientAddr(&server_addr), ntohs(server_addr.sin_port));
