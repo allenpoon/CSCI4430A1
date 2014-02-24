@@ -88,10 +88,14 @@ void *accepted(void *csd){
 	int id = p->id;
 	
 	while(1){
+
+		printf("B4 recv data\n");
 		data = recv_data(client_sd,(unsigned int *)&len,&status);
+		printf("AFTER recv data\n");
 		switch(status){
 			case -1:
 			case -2:
+				printf("Status = error(%d)\n", status);
 				close(client_sd);
 				offline(id);
 				printf("[Disconnected] Client %s:%d\n", 
@@ -101,6 +105,8 @@ void *accepted(void *csd){
 			default:
 				break;
 		}
+
+		printf("DATA command: %d\n", data->command);
 
 	    switch(data->command){
 	    	case LOGIN:

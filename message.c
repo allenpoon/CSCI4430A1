@@ -332,11 +332,11 @@ int send_data_buff(int sd, DATA * data, unsigned int *rtnlen, unsigned char *buf
 	static unsigned int i;
 	printf("hi\n");
     toData(data, buff);
-	printf("hi sending thru %d\n", sd
-		);
+	printf("hi sending thru %d\n", sd);
     if(!rtnlen) rtnlen=malloc(sizeof(unsigned int));
 	printf("hi\n");
-    if((*rtnlen=send(sd,buff,getDataLen(buff),0))<0){
+    printf("SD: %d, BuffLen: %d\n", sd, getDataLen(buff));
+    if(((*rtnlen)=send(sd,buff,getDataLen(buff),0))<0){
         printf("Send Error: %s (Errno:%d)\n",strerror(errno),errno);
         return 0;
     }
